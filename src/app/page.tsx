@@ -24,7 +24,7 @@ const AnimatedTitle = () => {
   
   return (
     <h1 className="text-5xl lg:text-7xl font-bold text-white leading-tight">
-      Hi, I&apos;m {roles[currentIndex].article}
+      Hi! My name is Paul and I&apos;m {roles[currentIndex].article}
       <span className="block bg-gradient-to-r from-pink-400 via-purple-400 via-blue-400 via-green-400 via-yellow-400 to-red-400 bg-clip-text text-transparent transition-all duration-500">
         {roles[currentIndex].text}
       </span>
