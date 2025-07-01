@@ -24,7 +24,7 @@ const AnimatedTitle = () => {
   
   return (
     <h1 className="text-5xl lg:text-7xl font-bold text-white leading-tight">
-      Hi, I'm {roles[currentIndex].article}
+      Hi, I&apos;m {roles[currentIndex].article}
       <span className="block bg-gradient-to-r from-pink-400 via-purple-400 via-blue-400 via-green-400 via-yellow-400 to-red-400 bg-clip-text text-transparent transition-all duration-500">
         {roles[currentIndex].text}
       </span>
@@ -66,7 +66,7 @@ export default function Home() {
               </div>
               <div className="flex flex-col sm:flex-row gap-4">
                 <button className="px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold rounded-full hover:scale-105 transition-transform shadow-lg">
-                  Let's Collaborate
+                  Let&apos;s Collaborate
                 </button>
                 <button className="px-8 py-4 border-2 border-white/30 text-white font-semibold rounded-full hover:bg-white/10 transition-colors">
                   Join the Community
@@ -103,13 +103,13 @@ export default function Home() {
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
               <p className="text-lg text-white/80 leading-relaxed">
-                I'm passionate about building technology that welcomes everyone. As an advocate for inclusive design 
+                I&apos;m passionate about building technology that welcomes everyone. As an advocate for inclusive design 
                 and collaborative development, I believe the best solutions come from diverse perspectives working together. 
                 My approach combines technical excellence with empathy, ensuring every user feels valued and empowered.
               </p>
               <p className="text-lg text-white/80 leading-relaxed">
-                Beyond code, I'm dedicated to fostering communities where all voices are heard. Whether mentoring new developers, 
-                contributing to accessibility initiatives, or creating spaces for meaningful connection, I'm committed to 
+                Beyond code, I&apos;m dedicated to fostering communities where all voices are heard. Whether mentoring new developers, 
+                contributing to accessibility initiatives, or creating spaces for meaningful connection, I&apos;m committed to 
                 using technology as a force for positive change. Together, we can build a more inclusive digital world! 🌈
               </p>
             </div>
@@ -148,7 +148,7 @@ export default function Home() {
               { name: 'Open Source', color: 'from-orange-400 to-red-400' },
             ].map((skill, index) => (
               <div
-                key={skill.name}
+                key={skill.name || index}
                 className="p-6 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-300 hover:scale-105"
               >
                 <div className={`w-12 h-12 rounded-lg bg-gradient-to-r ${skill.color} mb-4 flex items-center justify-center`}>
@@ -227,7 +227,7 @@ export default function Home() {
       <section id="contact" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl lg:text-5xl font-bold text-white mb-8">
-            Let's Build Together
+            Let&apos;s Build Together
           </h2>
           <p className="text-xl text-white/80 mb-12 leading-relaxed">
             Ready to create inclusive, accessible, and impactful technology? Join me in building solutions that welcome everyone and make a difference!
