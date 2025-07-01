@@ -1,36 +1,8 @@
 // page.tsx
 'use client'
-import Image from 'next/image'
 import { useState, useEffect } from 'react'
 
-const AnimatedTitle = () => {
-  const roles = [
-    { text: 'Ally', article: 'an' },
-    { text: 'Developer', article: 'a' },
-    { text: 'Father', article: 'a' },
-    { text: 'Musician', article: 'a' },
-    { text: 'Friend', article: 'a' }
-  ]
-  
-  const [currentIndex, setCurrentIndex] = useState(0)
-  
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % roles.length)
-    }, 1500)
-    
-    return () => clearInterval(interval)
-  }, [])
-  
-  return (
-    <h1 className="text-5xl lg:text-7xl font-bold text-white leading-tight">
-      Hi! I&apos;m {roles[currentIndex].article}
-      <span className="block bg-gradient-to-r from-pink-400 via-purple-400 via-blue-400 via-green-400 via-yellow-400 to-red-400 bg-clip-text text-transparent transition-all duration-500">
-        {roles[currentIndex].text}
-      </span>
-    </h1>
-  )
-}
+
 
 export default function Home() {
   return (
