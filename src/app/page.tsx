@@ -44,7 +44,6 @@ export default function Home() {
             </div>
             <div className="hidden md:flex space-x-8">
               <a href="#about" className="text-white/80 hover:text-white transition-colors">About</a>
-              <a href="#projects" className="text-white/80 hover:text-white transition-colors">Projects</a>
               <a href="#skills" className="text-white/80 hover:text-white transition-colors">Skills</a>
               <a href="#contact" className="text-white/80 hover:text-white transition-colors">Contact</a>
             </div>
@@ -161,68 +160,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Projects Section */}
-      <section id="projects" className="py-20 px-4 sm:px-6 lg:px-8 bg-white/5 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl lg:text-5xl font-bold text-white mb-4">
-              Collaborative Projects
-            </h2>
-            <div className="w-24 h-1 bg-gradient-to-r from-green-400 to-blue-400 mx-auto rounded-full"></div>
-            <p className="text-white/70 mt-4 max-w-2xl mx-auto">
-              Projects built with diverse teams, focusing on accessibility, inclusion, and community impact
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              { 
-                title: 'Inclusive Learning Platform', 
-                desc: 'Accessible education app with multi-language support and adaptive interfaces',
-                impact: 'Serving 10,000+ learners globally'
-              },
-              { 
-                title: 'Community Connection Hub', 
-                desc: 'Safe space platform for underrepresented groups in tech to connect and collaborate',
-                impact: 'Built with 12 volunteer developers'
-              },
-              { 
-                title: 'Open Source Accessibility Toolkit', 
-                desc: 'React components and tools for building more inclusive web applications',
-                impact: '500+ GitHub stars, 15 contributors'
-              },
-            ].map((project, index) => (
-              <div
-                key={project.title}
-                className="group rounded-xl overflow-hidden bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-300 hover:scale-105"
-              >
-                <div className="relative h-48 overflow-hidden">
-                  <Image
-                    src={`https://picsum.photos/400/300?random=${index + 1}`}
-                    alt={project.title}
-                    fill
-                    className="object-cover group-hover:scale-110 transition-transform duration-300"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-                </div>
-                <div className="p-6">
-                  <h3 className="text-xl font-bold text-white mb-2">{project.title}</h3>
-                  <p className="text-white/70 mb-2">{project.desc}</p>
-                  <p className="text-sm text-green-400 mb-4 font-medium">{project.impact}</p>
-                  <div className="flex gap-2">
-                    <button className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white text-sm font-medium rounded-full hover:scale-105 transition-transform">
-                      View Project
-                    </button>
-                    <button className="px-4 py-2 border border-white/30 text-white text-sm font-medium rounded-full hover:bg-white/10 transition-colors">
-                      Contribute
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Contact Section */}
       <section id="contact" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
@@ -251,7 +188,6 @@ export default function Home() {
               loveondev.com
             </div>
             <div className="flex gap-6">
-              <a href="#" className="text-white/60 hover:text-white transition-colors">GitHub</a>
               <a href="#" className="text-white/60 hover:text-white transition-colors">LinkedIn</a>
               <a href="#" className="text-white/60 hover:text-white transition-colors">Twitter</a>
               <a href="#" className="text-white/60 hover:text-white transition-colors">Email</a>
