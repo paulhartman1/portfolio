@@ -7,7 +7,7 @@ export async function POST() {
   await supabase.auth.signOut()
 
   // Clear cookies
-  const res = NextResponse.redirect(new URL('/auth/login', 'http://localhost:3000'))
+  const res = NextResponse.redirect(new URL('/', 'https://loveondev.com'))
   res.cookies.delete('sb-access-token')
   res.cookies.delete('sb-refresh-token')
   return res
