@@ -2,6 +2,8 @@
 'use client'
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+
 
 const AnimatedTitle = () => {
   const roles = [
@@ -13,12 +15,14 @@ const AnimatedTitle = () => {
   ]
   
   const [currentIndex, setCurrentIndex] = useState(0)
+ 
   
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % roles.length)
     }, 1500)
     
+
     return () => clearInterval(interval)
   }, [])
   
@@ -33,6 +37,7 @@ const AnimatedTitle = () => {
 }
 
 export default function Home() {
+   const router = useRouter()
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       {/* Navigation */}
@@ -65,10 +70,14 @@ export default function Home() {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4">
-                <button className="px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold rounded-full hover:scale-105 transition-transform shadow-lg">
+                <button className="px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold rounded-full hover:scale-105 transition-transform shadow-lg" onClick={() => {
+                  router.push('/auth/login')
+                }}>
                   Let&apos;s Collaborate
                 </button>
-                <button className="px-8 py-4 border-2 border-white/30 text-white font-semibold rounded-full hover:bg-white/10 transition-colors">
+                <button className="px-8 py-4 border-2 border-white/30 text-white font-semibold rounded-full hover:bg-white/10 transition-colors" onClick={() => {
+                  router.push('/auth/login')
+                }}>
                   Join the Community
                 </button>
               </div>
@@ -171,10 +180,14 @@ export default function Home() {
             Ready to create inclusive, accessible, and impactful technology? Join me in building solutions that welcome everyone and make a difference!
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="px-8 py-4 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white font-semibold rounded-full hover:scale-105 transition-transform shadow-lg">
+            <button className="px-8 py-4 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white font-semibold rounded-full hover:scale-105 transition-transform shadow-lg" onClick={() => {
+              router.push('/auth/login')
+            }}>
               Start Collaborating
             </button>
-            <button className="px-8 py-4 border-2 border-white/30 text-white font-semibold rounded-full hover:bg-white/10 transition-colors">
+            <button className="px-8 py-4 border-2 border-white/30 text-white font-semibold rounded-full hover:bg-white/10 transition-colors" onClick={() => {
+              router.push('/auth/login')
+            }}>
               Join Our Community
             </button>
           </div>

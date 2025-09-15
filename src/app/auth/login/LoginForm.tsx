@@ -17,7 +17,7 @@ export default function LoginForm() {
       const redirectTo = `${window.location.origin}/auth/callback`
       const { data, error } = await supabaseBrowser.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: redirectTo },
+        options: { emailRedirectTo: redirectTo, shouldCreateUser: true},
       })
 
       if (error) throw error
@@ -33,7 +33,7 @@ export default function LoginForm() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       <form onSubmit={sendMagicLink} className="p-8 bg-white/5 rounded-xl w-full max-w-md">
-        <h2 className="text-2xl font-bold text-white mb-4">Sign in — magic link</h2>
+        <h2 className="text-2xl font-bold text-white mb-4">Magic Link</h2>
 
         <label className="block text-white/80 mb-2">Email</label>
         <input
