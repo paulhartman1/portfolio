@@ -31,7 +31,7 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+    <div className=" mt-60 flex items-center justify-center">
       <form onSubmit={sendMagicLink} className="p-8 bg-white/5 rounded-xl w-full max-w-md">
         <h2 className="text-2xl font-bold text-white mb-4">Magic Link</h2>
 
@@ -48,7 +48,7 @@ export default function LoginForm() {
         <button
           type="submit"
           disabled={status === 'sending' || status === 'sent'}
-          className="w-full px-4 py-3 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold"
+          className="w-full px-4 py-3 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold z-1000"
         >
           {status === 'sending' ? 'Sending…' : status === 'sent' ? 'Check your email' : 'Send magic link'}
         </button>
