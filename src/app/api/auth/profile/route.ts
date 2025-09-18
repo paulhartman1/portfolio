@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
   console.log('Received profile update request')
 
   const contentType = (req.headers.get('content-type') || '').toLowerCase()
-  let body: Record<string, any> = {}
+  let body: Record<string, unknown> = {}
 
   try {
     if (contentType.includes('application/json')) {
@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
       } catch (fdErr) {
         // last resort: try json (will throw if not json)
         body = await req.json()
+        console.error('Failed to parse formData, parsed as JSON instead:', fdErr)
       }
     }
   } catch (err) {
