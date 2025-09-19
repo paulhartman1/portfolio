@@ -4,16 +4,34 @@ import { redirect } from 'next/navigation'
 
 export default async function DashboardPage() {
   const supabase = createServerComponentClient({ cookies })
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user }, error: userErr } = await supabase.auth.getUser()
+  if (userErr) console.error('Error fetching user data:', userErr.message)
 
-  if (!session) redirect('/auth/login')
+  //check if 
+let displayName: string | null = null
+  if (user?.id) {
+    const { data: profile, error: profileErr } = await supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('id', user.id)
+      .single()
 
-  const user = session.user
+    if (profileErr && profileErr.code !== 'PGRST116') { // ignore "no rows" style
+      console.error('profiles select error', profileErr)
+    }
+    displayName = profile?.display_name ?? user.user_metadata?.display_name ?? null
+    if(displayName === null) {
+      //redirect to profile if no display name
+      redirect('/auth/profile')
+    }
+  } else {
+    //redirect to login if no user
+  }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-8">
+    < div className="min-h-screen flex flex-col items-center justify-center  p-8">
       <div className="bg-white/5 backdrop-blur-lg border border-white/20 rounded-2xl shadow-lg p-10 w-full max-w-md text-center">
-        <h1 className="text-4xl font-bold text-white mb-4">Welcome, {user.email}</h1>
+        <h1 className="text-4xl font-bold text-white mb-4">Welcome, {user?.user_metadata.display_name}</h1>
         <p className="text-white/80 mb-8">
           You are logged in to Swoboda Studios client portal.
         </p>
