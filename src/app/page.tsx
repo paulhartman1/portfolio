@@ -1,10 +1,8 @@
 // page.tsx
 'use client'
-import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-
-
+import About from './components/about'
 const AnimatedTitle = () => {
   const roles = [
     { text: 'ally', article: 'an' },
@@ -27,7 +25,7 @@ const AnimatedTitle = () => {
   }, [])
 
   return (
-    <h1 className="text-5xl lg:text-7xl font-bold  leading-tight bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-indigo-500 inline-block text-transparent bg-clip-text transition-all duration-50">
+    <h1 className="text-5xl lg:text-7xl font-bold  leading-tight bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-indigo-500 inline-block text-transparent bg-clip-text transition-all duration-5">
       Hi! I&apos;m {roles[currentIndex].article}
       <span className=" ">
          &nbsp;{roles[currentIndex].text}
@@ -57,7 +55,8 @@ export default function Home() {
           </div>
         </div>
       </nav>
-       <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+
+       <section className="pt-32 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
           <div className="grid items-center">
             <div className="space-y-8">
@@ -68,13 +67,13 @@ export default function Home() {
                   Passionate about collaborative development, accessible design, and creating technology that brings people together
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <button className="z-10 px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold rounded-full hover:scale-105 transition-transform shadow-lg" onClick={() => {
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <button className="z-10 px-8 py-4 border-1 border-green-500 text-white font-semibold rounded-full hover:bg-gradient-to-br from-purple-600 via-green-900 to-pink-900 hover:scale-105 transition-transform shadow-lg" onClick={() => {
                   router.push('/auth/login')
                 }}>
                   Let&apos;s Collaborate
                 </button>
-                <button className="px-8 py-4 border-2 border-white/30 text-white font-semibold rounded-full hover:bg-white/10 transition-colors z-10" onClick={() => {
+                <button className="px-8 py-4 border-1 border-yellow-500 text-white font-semibold rounded-full hover:bg-gradient-to-br via-orange-900 to-red-800   hover:scale-105 transition-transform shadow-lg" onClick={() => {
                   router.push('/auth/login')
                 }}>
                   Join the Community
@@ -85,40 +84,8 @@ export default function Home() {
           </div>
         </div>
       </section>
-      <section id="about" className="py-20 px-4 sm:px-6 lg:px-8 ">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl lg:text-5xl font-bold text-white mb-4">
-              About Me
-            </h2>
-            <div className="w-24 h-1 bg-gradient-to-r from-pink-400 to-purple-400 mx-auto rounded-full"></div>
-          </div>
-          <div className="grid lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-6">
-              <p className={`text-lg text-white/100 leading-relaxed`}>
-                I&apos;m passionate about building technology that welcomes everyone. As an advocate for inclusive design
-                and collaborative development, I believe the best solutions come from diverse perspectives working together.
-                My approach combines technical excellence with empathy, ensuring every user feels valued and empowered.
-              </p>
-              <p className="text-lg text-white/100 leading-relaxed">
-                Beyond code, I&apos;m dedicated to fostering communities where all voices are heard. Whether mentoring new developers,
-                contributing to accessibility initiatives, or creating spaces for meaningful connection, I&apos;m committed to
-                using technology as a force for positive change. Together, we can build a more inclusive digital world! 🌈
-              </p>
-            </div>
-            <div className="relative">
-              <div className="relative w-full h-80 rounded-xl overflow-hidden shadow-xl">
-                <Image
-                  src="https://picsum.photos/400/500"
-                  alt="About me"
-                  fill
-                  className="object-cover"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+   
+   <About />
       <section id="skills" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">

@@ -2,10 +2,16 @@
 
 
 body {
-  background-image: url('/background.png');   background-blend-mode: color;
-  background-color: #160d1d;
+  background-image: url('/background.png');   
+  background-color: #180232;
+  background-blend-mode: soft-light;
+
   background-repeat: no-repeat;
   background-size: cover;
   background-attachment: fixed;
 
+}
+
+.blend-darken {
+backdrop-filter: brightness(60%)  sepia(30%) blur(2px);
 }
