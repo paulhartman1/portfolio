@@ -1,5 +1,6 @@
 // page.tsx
 'use client'
+import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import About from './components/about'
@@ -44,7 +45,13 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent">
-              loveondev.com
+              <Image
+                               src="/logo.png"
+                               alt="Logo"
+                               className="object-cover rounded-full"
+                               width={60}
+                               height={60}
+              />
             </div>
             <div className="hidden md:flex space-x-8">
               <a href="#about" className="text-white/80 hover:text-white transition-colors">About</a>
