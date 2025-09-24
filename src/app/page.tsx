@@ -56,7 +56,7 @@ export default function Home() {
             <div className="hidden md:flex space-x-8">
               <a href="#about" className="text-white/80 hover:text-white transition-colors">About</a>
               <a href="#skills" className="text-white/80 hover:text-white transition-colors">Skills</a>
-              <a href="#contact" className="text-white/80 hover:text-white transition-colors">Contact</a>
+              <a href="https://tidycal.com/loveondev" target='_blank' className="text-white/80 hover:text-white transition-colors">Contact</a>
               <a href="/auth/login" className="text-white/80 hover:text-white transition-colors">Login</a>
             </div>
           </div>
