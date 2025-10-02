@@ -76,12 +76,12 @@ export default function Home() {
               </div>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <button className="z-10 px-8 py-4 border-1 border-green-500 text-white font-semibold rounded-full hover:bg-gradient-to-br from-purple-600 via-green-900 to-pink-900 hover:scale-105 transition-transform shadow-lg" onClick={() => {
-                  router.push('/auth/login')
+                  window.open('https://tidycal.com/loveondev', '_blank')
                 }}>
                   Let&apos;s Collaborate
                 </button>
                 <button className="px-8 py-4 border-1 border-yellow-500 text-white font-semibold rounded-full hover:bg-gradient-to-br via-orange-900 to-red-800   hover:scale-105 transition-transform shadow-lg" onClick={() => {
-                  window.open('https://tidycal.com/loveondev', '_blank')
+                  router.push('/auth/login')
                 }}>
                   Join the Community
                 </button>
