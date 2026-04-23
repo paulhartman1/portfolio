@@ -3,7 +3,8 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 export default async function ProfilePage() {
-  const supabase = createServerComponentClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerComponentClient({ cookies: () => cookieStore })
   const { data: { session } } = await supabase.auth.getSession()
 
   if (!session) redirect('/auth/login')
@@ -21,8 +22,8 @@ export default async function ProfilePage() {
             <input type="text" name="last_name" placeholder="Last Name" className="w-full px-4 py-2 mb-4 border border-white/20 rounded-lg bg-transparent text-white" />
             <input type="text" name="company" placeholder="Company" className="w-full px-4 py-2 mb-4 border border-white/20 rounded-lg bg-transparent text-white" />    
             <input type="text" name="phone" placeholder="Phone Number" className="w-full px-4 py-2 mb-4 border border-white/20 rounded-lg bg-transparent text-white" /> 
-            <select name="pronouns" className="w-full px-4 py-2 mb-4 border border-white/20 rounded-lg bg-transparent text-white">
-                <option value="" disabled defaultValue={''} selected>Select Pronouns</option>
+            <select name="pronouns" defaultValue="" className="w-full px-4 py-2 mb-4 border border-white/20 rounded-lg bg-transparent text-white">
+                <option value="" disabled>Select Pronouns</option>
                 <option value="she/her">She/Her</option>
                 <option value="he/him">He/Him</option>
                 <option value="they/them">They/Them</option>

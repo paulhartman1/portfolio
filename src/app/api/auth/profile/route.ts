@@ -54,12 +54,32 @@ export async function POST(req: NextRequest) {
     }
     console.log('Current user data:', user)
 
+    // Update auth metadata
     const { error } = await supabase.auth.updateUser({
       data: { first_name, last_name, company, phone, pronouns, display_name }
     })
     if (error) {
       console.error('Error updating user:', error)
       return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+
+    // Also update profiles table
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert({
+        id: user!.id,
+        email: user!.email,
+        display_name,
+        first_name,
+        last_name,
+        company,
+        phone,
+        pronouns
+      })
+
+    if (profileError) {
+      console.error('Error updating profile:', profileError)
+      return NextResponse.json({ error: profileError.message }, { status: 400 })
     }
 
     return NextResponse.redirect(new URL('/dashboard', req.url))

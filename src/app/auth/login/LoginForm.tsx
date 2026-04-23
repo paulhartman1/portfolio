@@ -23,9 +23,9 @@ export default function LoginForm() {
       if (error) throw error
       if (!data) throw new Error('No data received')
       setStatus('sent')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending magic link:', error)
-      setErrorMsg('Unknown error')
+      setErrorMsg(error?.message || error?.error_description || 'Unknown error')
       setStatus('error')
     }
   }

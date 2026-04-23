@@ -3,29 +3,36 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 export default async function DashboardPage() {
-  const supabase = createServerComponentClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerComponentClient({ cookies: () => cookieStore })
   const { data: { user }, error: userErr } = await supabase.auth.getUser()
+  
   if (userErr) console.error('Error fetching user data:', userErr.message)
+  
+  if (!user) {
+    redirect('/auth/login')
+  }
 
-  //check if 
-let displayName: string | null = null
-  if (user?.id) {
-    const { data: profile, error: profileErr } = await supabase
-      .from('profiles')
-      .select('display_name')
-      .eq('id', user.id)
-      .single()
+  // Check if user is admin and redirect to admin panel
+  const { data: profile, error: profileErr } = await supabase
+    .from('profiles')
+    .select('display_name, is_admin')
+    .eq('id', user.id)
+    .single()
 
-    if (profileErr && profileErr.code !== 'PGRST116') { // ignore "no rows" style
-      console.error('profiles select error', profileErr)
-    }
-    displayName = profile?.display_name ?? user.user_metadata?.display_name ?? null
-    if(displayName === null) {
-      //redirect to profile if no display name
-      redirect('/auth/profile')
-    }
-  } else {
-    //redirect to login if no user
+  if (profileErr && profileErr.code !== 'PGRST116') {
+    console.error('profiles select error', profileErr.message || profileErr)
+  }
+
+  // Redirect admins to admin panel
+  if (profile?.is_admin) {
+    redirect('/admin')
+  }
+
+  const displayName = profile?.display_name ?? user.user_metadata?.display_name ?? null
+  
+  if (displayName === null) {
+    redirect('/auth/profile')
   }
 
   return (

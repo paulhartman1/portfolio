@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import About from './components/about'
+import Projects from './components/projects'
 const AnimatedTitle = () => {
   const roles = [
     { text: 'ally', article: 'an' },
@@ -55,6 +56,7 @@ export default function Home() {
             </div>
             <div className="hidden md:flex space-x-8">
               <a href="#about" className="text-white/80 hover:text-white transition-colors">About</a>
+              <a href="#projects" className="text-white/80 hover:text-white transition-colors">Projects</a>
               <a href="#skills" className="text-white/80 hover:text-white transition-colors">Skills</a>
               <a href="https://tidycal.com/loveondev" target='_blank' className="text-white/80 hover:text-white transition-colors">Contact</a>
               <a href="/auth/login" className="text-white/80 hover:text-white transition-colors">Login</a>
@@ -93,6 +95,7 @@ export default function Home() {
       </section>
 
       <About />
+      <Projects />
       <section id="skills" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
