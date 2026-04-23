@@ -1,12 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabaseBrowser } from '@/utils/supabase/client'
 
 export default function LoginForm() {
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle'|'sending'|'sent'|'error'>('idle')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [isLocalhost, setIsLocalhost] = useState(false)
+
+  useEffect(() => {
+    setIsLocalhost(window.location.hostname === 'localhost')
+  }, [])
 
   async function sendMagicLink(e: React.FormEvent) {
     e.preventDefault()
@@ -26,6 +31,45 @@ export default function LoginForm() {
     } catch (error: unknown) {
       console.error('Error sending magic link:', error)
       setErrorMsg((error as Error)?.message || (error as {error_description?: string})?.error_description || 'Unknown error')
+      setStatus('error')
+    }
+  }
+
+  async function devPasswordLogin() {
+    console.log('Dev login clicked')
+    setStatus('sending')
+    setErrorMsg(null)
+
+    try {
+      console.log('Attempting dev login...')
+      // Dev-only password login
+      const { data, error} = await supabaseBrowser.auth.signInWithPassword({
+        email: 'dev@test.com',
+        password: 'dev123456'
+      })
+
+      console.log('Login response:', { data, error })
+      if (error) throw error
+      
+      console.log('Login successful, setting session...')
+      // Set session via API to persist cookies
+      const sessionData = data.session
+      if (sessionData) {
+        await fetch('/api/auth/set-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            access_token: sessionData.access_token,
+            refresh_token: sessionData.refresh_token
+          })
+        })
+      }
+      
+      console.log('Session set, redirecting...')
+      window.location.href = '/admin'
+    } catch (error: unknown) {
+      console.error('Error logging in:', error)
+      setErrorMsg((error as Error)?.message || 'Login failed')
       setStatus('error')
     }
   }
@@ -55,6 +99,20 @@ export default function LoginForm() {
 
         {status === 'sent' && <p className="mt-4 text-white/80">A magic link has been sent — check your inbox.</p>}
         {status === 'error' && <p className="mt-4 text-red-400">{errorMsg}</p>}
+
+        {/* Dev-only password login */}
+        {isLocalhost && (
+          <div className="mt-4 pt-4 border-t border-white/20">
+            <p className="text-white/60 text-sm mb-2">Dev Mode Only:</p>
+            <button
+              type="button"
+              onClick={devPasswordLogin}
+              className="w-full px-4 py-2 rounded-lg bg-white/10 text-white text-sm hover:bg-white/20"
+            >
+              Quick Login (Dev)
+            </button>
+          </div>
+        )}
       </form>
     </div>
   )
