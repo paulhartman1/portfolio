@@ -52,7 +52,7 @@ export default async function AdminProjects() {
           </div>
         ) : (
           <div className="space-y-3">
-            {projects.map((project: any) => (
+            {projects.map((project) => (
               <div
                 key={project.id}
                 className="bg-white/5 border border-white/20 rounded-lg p-4"

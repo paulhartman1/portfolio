@@ -30,6 +30,7 @@ export default function AdminComments() {
 
   useEffect(() => {
     loadComments()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter])
 
   async function loadComments() {
