@@ -3,8 +3,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 export default async function DashboardPage() {
-  const cookieStore = await cookies()
-  const supabase = createServerComponentClient({ cookies: () => cookieStore })
+  const supabase = createServerComponentClient({ cookies })
   const { data: { user }, error: userErr } = await supabase.auth.getUser()
   
   if (userErr) console.error('Error fetching user data:', userErr.message)

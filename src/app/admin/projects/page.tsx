@@ -3,8 +3,7 @@ import { cookies } from 'next/headers'
 import Link from 'next/link'
 
 export default async function AdminProjects() {
-  const cookieStore = await cookies()
-  const supabase = createServerComponentClient({ cookies: () => cookieStore })
+  const supabase = createServerComponentClient({ cookies })
 
   // Get all projects with client info
   const { data: projects } = await supabase

@@ -3,8 +3,7 @@ import { cookies } from 'next/headers'
 import Link from 'next/link'
 
 export default async function AdminDashboard() {
-  const cookieStore = await cookies()
-  const supabase = createServerComponentClient({ cookies: () => cookieStore })
+  const supabase = createServerComponentClient({ cookies })
 
   // Get all clients (non-admin profiles)
   const { data: clients } = await supabase

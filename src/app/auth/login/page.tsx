@@ -5,8 +5,7 @@ import LoginForm from './LoginForm'
 
 export default async function LoginPage() {
   // Check session server-side
-  const cookieStore = await cookies()
-  const supabase = createServerComponentClient({ cookies: () => cookieStore })
+  const supabase = createServerComponentClient({ cookies })
   const { data: { session }, error } = await supabase.auth.getSession()
 
   if (error) {
