@@ -1,5 +1,5 @@
-import { redirect, notFound } from 'next/navigation'
-import { createClient } from '@/utils/supabase/server'
+import Link from 'next/link'
+import { getPortalContext } from './_lib'
 
 export default async function ClientPortalPage({
   params,
@@ -7,118 +7,121 @@ export default async function ClientPortalPage({
   params: Promise<{ subdomain: string }>
 }) {
   const { subdomain } = await params
-  const supabase = await createClient()
+  const { project, supabase, hasAccess } = await getPortalContext(subdomain)
 
-  // Get the project by subdomain
-  const { data: project, error } = await supabase
-    .from('projects')
-    .select(`
-      *,
-      profiles (
-        display_name,
-        company
-      )
-    `)
-    .eq('subdomain', subdomain)
-    .single()
+  if (!hasAccess) return null
 
-  if (error || !project) {
-    notFound()
-  }
+  const [{ data: comments }, { data: approvals }, { data: updates }] = await Promise.all([
+    supabase
+      .from('review_comments')
+      .select('status')
+      .eq('project_id', project.id),
+    supabase
+      .from('project_approvals')
+      .select('id, title, status, due_at')
+      .eq('project_id', project.id)
+      .order('due_at', { ascending: true, nullsFirst: false }),
+    supabase
+      .from('project_updates')
+      .select('id, title, body, created_at')
+      .eq('project_id', project.id)
+      .eq('is_internal', false)
+      .order('created_at', { ascending: false })
+      .limit(3),
+  ])
 
-  // Check if user is logged in
-  const { data: { user } } = await supabase.auth.getUser()
-
-  // If not logged in, redirect to login
-  if (!user) {
-    redirect(`/auth/login?redirect=/portal/${subdomain}`)
-  }
-
-  // Check if user is the client or an admin
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', user.id)
-    .single()
-
-  const isAdmin = profile?.is_admin
-  const isClient = user.id === project.client_id
-
-  if (!isAdmin && !isClient) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-sky-500 to-emerald-500">
-        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-8 max-w-md text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Access Denied</h1>
-          <p className="text-white/80">You don&apos;t have permission to view this project.</p>
-        </div>
-      </div>
-    )
-  }
+  const openComments = comments?.filter((c) => c.status !== 'resolved').length ?? 0
+  const resolvedComments = comments?.filter((c) => c.status === 'resolved').length ?? 0
+  const pendingApproval = approvals?.find((a) => a.status === 'pending')
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-sky-500 to-emerald-500">
-      {/* Header */}
-      <header className="bg-white/10 backdrop-blur-lg border-b border-white/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-white">{project.name}</h1>
-              <p className="text-white/60 text-sm">
-                {project.profiles?.company || project.profiles?.display_name}
-              </p>
-            </div>
-            <div className="flex gap-4">
-              {isAdmin && (
-                <a
-                  href="/admin"
-                  className="px-4 py-2 rounded-lg bg-white/20 text-white hover:bg-white/30"
-                >
-                  Admin Dashboard
-                </a>
-              )}
-              <form action="/api/auth/logout" method="POST">
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-lg bg-white/20 text-white hover:bg-white/30"
-                >
-                  Logout
-                </button>
-              </form>
-            </div>
+    <div className="space-y-6">
+      <section className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+        <div className="flex flex-wrap justify-between gap-4 items-center">
+          <div>
+            <p className="text-white/70 text-sm mb-1">Project phase</p>
+            <h2 className="text-2xl font-semibold text-white capitalize">{project.status}</h2>
+            <p className="text-white/80 mt-2">
+              {pendingApproval
+                ? 'Your project is moving. We are waiting on your next approval.'
+                : 'Your project is on track. No immediate action needed right now.'}
+            </p>
           </div>
+          <Link
+            href={`/portal/${subdomain}/preview`}
+            className="px-5 py-3 rounded-lg bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:scale-105 transition-transform"
+          >
+            Open Preview
+          </Link>
         </div>
-      </header>
+      </section>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 mb-6">
-          <h2 className="text-xl font-semibold text-white mb-2">Project Preview</h2>
-          {project.description && (
-            <p className="text-white/80 mb-4">{project.description}</p>
-          )}
-          {project.url ? (
-            <div className="bg-white rounded-lg overflow-hidden" style={{ height: '600px' }}>
-              <iframe
-                src={project.url}
-                className="w-full h-full"
-                title={project.name}
-              />
-            </div>
-          ) : (
-            <div className="bg-white/5 border border-white/20 rounded-lg p-12 text-center">
-              <p className="text-white/60">No preview URL configured yet</p>
-            </div>
-          )}
+      <section className="grid md:grid-cols-3 gap-6">
+        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-5">
+          <p className="text-white/70 text-sm">Open feedback</p>
+          <p className="text-white text-3xl font-bold mt-1">{openComments}</p>
+          <p className="text-white/70 text-sm mt-2">{resolvedComments} resolved comments</p>
         </div>
-
-        {/* Comments Section */}
-        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-          <h2 className="text-xl font-semibold text-white mb-4">Leave Feedback</h2>
-          <p className="text-white/60">
-            Comment system coming soon - you&apos;ll be able to click on the preview and leave notes!
+        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-5">
+          <p className="text-white/70 text-sm">Approvals waiting</p>
+          <p className="text-white text-3xl font-bold mt-1">
+            {approvals?.filter((a) => a.status === 'pending').length ?? 0}
+          </p>
+          <p className="text-white/70 text-sm mt-2">Only decisions that require your input</p>
+        </div>
+        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-5">
+          <p className="text-white/70 text-sm">Latest update</p>
+          <p className="text-white text-sm mt-2 line-clamp-3">
+            {updates?.[0]?.title || updates?.[0]?.body || 'No updates yet'}
           </p>
         </div>
-      </main>
+      </section>
+
+      <section className="grid lg:grid-cols-2 gap-6">
+        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-3">Action Required</h3>
+          {pendingApproval ? (
+            <div>
+              <p className="text-white">{pendingApproval.title}</p>
+              <p className="text-white/70 text-sm mt-1">
+                Due:{' '}
+                {pendingApproval.due_at
+                  ? new Date(pendingApproval.due_at).toLocaleDateString()
+                  : 'No deadline'}
+              </p>
+              <Link
+                href={`/portal/${subdomain}/approvals`}
+                className="inline-block mt-4 px-4 py-2 rounded-lg bg-white/20 text-white hover:bg-white/30"
+              >
+                Review approvals
+              </Link>
+            </div>
+          ) : (
+            <p className="text-white/80">You are all caught up. We’ll notify you when we need input.</p>
+          )}
+        </div>
+
+        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-3">Recent Updates</h3>
+          <div className="space-y-3">
+            {(updates || []).map((update) => (
+              <div key={update.id} className="bg-white/5 border border-white/20 rounded-lg p-3">
+                <p className="text-white font-medium">{update.title || 'Studio update'}</p>
+                <p className="text-white/80 text-sm mt-1 line-clamp-2">{update.body}</p>
+                <p className="text-white/60 text-xs mt-2">
+                  {new Date(update.created_at).toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </div>
+          <Link
+            href={`/portal/${subdomain}/updates`}
+            className="inline-block mt-4 text-white/90 hover:text-white underline text-sm"
+          >
+            View all updates
+          </Link>
+        </div>
+      </section>
     </div>
   )
 }
