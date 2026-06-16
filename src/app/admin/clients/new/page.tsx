@@ -29,7 +29,7 @@ export default function AddClientPage() {
       const { error } = await supabaseBrowser.auth.signInWithOtp({
         email: formData.email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/api/auth/callback`,
           shouldCreateUser: true,
           data: {
             first_name: formData.first_name,
