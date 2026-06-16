@@ -22,7 +22,7 @@ export default function LoginForm() {
       const redirectTo = `${window.location.origin}/auth/callback`
       const { data, error } = await supabaseBrowser.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: redirectTo, shouldCreateUser: true},
+        options: { emailRedirectTo: redirectTo },
       })
 
       if (error) throw error
@@ -55,7 +55,7 @@ export default function LoginForm() {
       // Set session via API to persist cookies
       const sessionData = data.session
       if (sessionData) {
-        await fetch('/api/auth/set-session', {
+        const res = await fetch('/api/auth/set-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -63,10 +63,10 @@ export default function LoginForm() {
             refresh_token: sessionData.refresh_token
           })
         })
+        const result = await res.json()
+        console.log('Session set, redirecting to', result.redirectUrl)
+        window.location.href = result.redirectUrl || '/dashboard'
       }
-      
-      console.log('Session set, redirecting...')
-      window.location.href = '/admin'
     } catch (error: unknown) {
       console.error('Error logging in:', error)
       setErrorMsg((error as Error)?.message || 'Login failed')

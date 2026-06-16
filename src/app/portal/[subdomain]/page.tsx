@@ -1,6 +1,5 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 import { redirect, notFound } from 'next/navigation'
+import { createClient } from '@/utils/supabase/server'
 
 export default async function ClientPortalPage({
   params,
@@ -8,7 +7,7 @@ export default async function ClientPortalPage({
   params: Promise<{ subdomain: string }>
 }) {
   const { subdomain } = await params
-  const supabase = createServerComponentClient({ cookies })
+  const supabase = await createClient()
 
   // Get the project by subdomain
   const { data: project, error } = await supabase
@@ -50,7 +49,7 @@ export default async function ClientPortalPage({
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-sky-500 to-emerald-500">
         <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-8 max-w-md text-center">
           <h1 className="text-2xl font-bold text-white mb-4">Access Denied</h1>
-          <p className="text-white/80">You don't have permission to view this project.</p>
+          <p className="text-white/80">You don&apos;t have permission to view this project.</p>
         </div>
       </div>
     )
@@ -116,7 +115,7 @@ export default async function ClientPortalPage({
         <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
           <h2 className="text-xl font-semibold text-white mb-4">Leave Feedback</h2>
           <p className="text-white/60">
-            Comment system coming soon - you'll be able to click on the preview and leave notes!
+            Comment system coming soon - you&apos;ll be able to click on the preview and leave notes!
           </p>
         </div>
       </main>

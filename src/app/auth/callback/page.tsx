@@ -32,10 +32,17 @@ export default function AuthCallbackPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ access_token, refresh_token })
     })
-    .then(res => res.ok ? router.replace('/dashboard') : setStatus('error'))
+    .then(res => res.ok ? res.json() : Promise.reject('Session failed'))
+    .then(data => {
+      if (data.redirectUrl) {
+        router.replace(data.redirectUrl)
+      } else {
+        router.replace('/dashboard')
+      }
+    })
     .catch(err => {
       setStatus('error')
-      setMessage('Failed to set session: ' + err.message)
+      setMessage('Failed to set session: ' + (err.message || err))
     })
 
   }, [router])

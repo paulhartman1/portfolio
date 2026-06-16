@@ -1,9 +1,8 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { createClient } from '@/utils/supabase/server'
 
 export default async function DashboardPage() {
-  const supabase = createServerComponentClient({ cookies })
+  const supabase = await createClient()
   const { data: { user }, error: userErr } = await supabase.auth.getUser()
   
   if (userErr) console.error('Error fetching user data:', userErr.message)

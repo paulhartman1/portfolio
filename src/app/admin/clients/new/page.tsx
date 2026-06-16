@@ -26,7 +26,7 @@ export default function AddClientPage() {
       const display_name = `${formData.first_name} ${formData.last_name}`.trim()
       
       // Invite the user via magic link
-      const { data, error } = await supabaseBrowser.auth.signInWithOtp({
+      const { error } = await supabaseBrowser.auth.signInWithOtp({
         email: formData.email,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,

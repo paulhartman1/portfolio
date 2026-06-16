@@ -1,9 +1,8 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 import Link from 'next/link'
+import { createClient } from '@/utils/supabase/server'
 
 export default async function AdminProjects() {
-  const supabase = createServerComponentClient({ cookies })
+  const supabase = await createClient()
 
   // Get all projects with client info
   const { data: projects } = await supabase
