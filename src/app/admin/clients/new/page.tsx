@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabaseBrowser } from '@/utils/supabase/client'
 
 export default function AddClientPage() {
   const router = useRouter()
   const [formData, setFormData] = useState({
     email: '',
+    password: '',
     first_name: '',
     last_name: '',
     company: '',
@@ -23,31 +23,26 @@ export default function AddClientPage() {
     setMessage('')
 
     try {
-      const display_name = `${formData.first_name} ${formData.last_name}`.trim()
-      
-      // Invite the user via magic link
-      const { error } = await supabaseBrowser.auth.signInWithOtp({
-        email: formData.email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/api/auth/callback`,
-          shouldCreateUser: true,
-          data: {
-            first_name: formData.first_name,
-            last_name: formData.last_name,
-            company: formData.company,
-            phone: formData.phone,
-            pronouns: formData.pronouns,
-            display_name
-          }
-        }
+      const res = await fetch('/api/admin/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          company: formData.company,
+          phone: formData.phone,
+          pronouns: formData.pronouns,
+        }),
       })
 
-      if (error) throw error
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to create client')
 
       setStatus('success')
-      setMessage(`Magic link sent to ${formData.email}. The client will be created when they click the link.`)
+      setMessage(`Client account created for ${formData.email}. They can sign in with the password you set and use password reset from login.`)
       
-      // Reset form
       setTimeout(() => {
         router.push('/admin')
       }, 2000)
@@ -70,7 +65,7 @@ export default function AddClientPage() {
     <div>
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-white mb-2">Add New Client</h1>
-        <p className="text-white/80">Send a magic link invitation to a new client</p>
+        <p className="text-white/80">Create a client account with email and password</p>
       </div>
 
       <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 max-w-2xl">
@@ -86,6 +81,23 @@ export default function AddClientPage() {
               className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white"
               placeholder="client@example.com"
             />
+          </div>
+
+          <div>
+            <label className="block text-white mb-2">Temporary Password *</label>
+            <input
+              type="password"
+              name="password"
+              required
+              minLength={8}
+              value={formData.password}
+              onChange={handleChange}
+              className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white"
+              placeholder="At least 8 characters"
+            />
+            <p className="text-white/60 text-sm mt-1">
+              Client can reset this from the login page.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -140,13 +152,13 @@ export default function AddClientPage() {
               name="pronouns"
               value={formData.pronouns}
               onChange={handleChange}
-              className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white"
+              className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white [&>option]:bg-gray-900 [&>option]:text-white"
             >
-              <option value="">Select...</option>
-              <option value="she/her">She/Her</option>
-              <option value="he/him">He/Him</option>
-              <option value="they/them">They/Them</option>
-              <option value="other">Other</option>
+              <option value="" className="bg-gray-900 text-white">Select...</option>
+              <option value="she/her" className="bg-gray-900 text-white">She/Her</option>
+              <option value="he/him" className="bg-gray-900 text-white">He/Him</option>
+              <option value="they/them" className="bg-gray-900 text-white">They/Them</option>
+              <option value="other" className="bg-gray-900 text-white">Other</option>
             </select>
           </div>
 
@@ -168,7 +180,7 @@ export default function AddClientPage() {
               disabled={status === 'sending'}
               className="px-6 py-3 rounded-lg bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50"
             >
-              {status === 'sending' ? 'Sending...' : 'Send Invitation'}
+              {status === 'sending' ? 'Creating...' : 'Create Client'}
             </button>
             
             <button

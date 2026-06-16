@@ -99,11 +99,11 @@ export default function AddProjectPage() {
               required
               value={formData.client_id}
               onChange={handleChange}
-              className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white"
+              className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white [&>option]:bg-gray-900 [&>option]:text-white"
             >
-              <option value="">Select a client...</option>
+              <option value="" className="bg-gray-900 text-white">Select a client...</option>
               {clients.map((client) => (
-                <option key={client.id} value={client.id}>
+                <option key={client.id} value={client.id} className="bg-gray-900 text-white">
                   {client.display_name || client.email} {client.company && `(${client.company})`}
                 </option>
               ))}
@@ -176,11 +176,11 @@ export default function AddProjectPage() {
               name="status"
               value={formData.status}
               onChange={handleChange}
-              className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white"
+              className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white [&>option]:bg-gray-900 [&>option]:text-white"
             >
-              <option value="active">Active</option>
-              <option value="paused">Paused</option>
-              <option value="completed">Completed</option>
+              <option value="active" className="bg-gray-900 text-white">Active</option>
+              <option value="paused" className="bg-gray-900 text-white">Paused</option>
+              <option value="completed" className="bg-gray-900 text-white">Completed</option>
             </select>
           </div>
 
