@@ -217,6 +217,39 @@ export default function ClientDetailPage() {
     setSendingMessage(false)
   }
 
+  async function markMessagesAsRead() {
+    const { data: userData } = await supabaseBrowser.auth.getUser()
+    if (!userData.user) return
+
+    // Mark all messages from the client (not sent by admin) as read
+    const unreadMessages = messages.filter(
+      (msg) => !msg.is_read && msg.sender_id !== userData.user.id
+    )
+
+    if (unreadMessages.length === 0) return
+
+    const { error } = await supabaseBrowser
+      .from('client_messages')
+      .update({ is_read: true })
+      .in(
+        'id',
+        unreadMessages.map((m) => m.id)
+      )
+
+    if (error) {
+      console.error('Error marking messages as read:', error)
+    } else {
+      loadClientData()
+    }
+  }
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      markMessagesAsRead()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length])
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'high': return 'bg-red-500/20 text-red-200 border-red-500/50'
@@ -333,9 +366,22 @@ export default function ClientDetailPage() {
 
       {/* Messages Section */}
       <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 mb-6">
-        <h2 className="text-2xl font-semibold text-white mb-4">
-          Messages ({messages.length})
-        </h2>
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-2xl font-semibold text-white">
+            Messages ({messages.length})
+          </h2>
+          {(() => {
+            const { data: userData } = supabaseBrowser.auth.getUser()
+            const unreadCount = messages.filter(
+              (msg) => !msg.is_read && msg.sender_id !== clientId
+            ).length
+            return unreadCount > 0 ? (
+              <span className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full">
+                {unreadCount}
+              </span>
+            ) : null
+          })()}
+        </div>
 
         {/* Messages Thread */}
         <div className="space-y-3 mb-4 max-h-96 overflow-y-auto">

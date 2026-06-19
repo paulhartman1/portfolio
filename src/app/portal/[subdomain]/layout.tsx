@@ -9,7 +9,7 @@ export default async function PortalLayout({
   params: Promise<{ subdomain: string }>
 }) {
   const { subdomain } = await params
-  const { project, isAdmin, hasAccess } = await getPortalContext(subdomain)
+  const { project, isAdmin, hasAccess, supabase, user } = await getPortalContext(subdomain)
 
   if (!hasAccess) {
     return (
@@ -22,13 +22,21 @@ export default async function PortalLayout({
     )
   }
 
+  // Get unread message count
+  const { count: unreadCount } = await supabase
+    .from('client_messages')
+    .select('*', { count: 'exact', head: true })
+    .eq('client_id', user.id)
+    .eq('is_read', false)
+    .neq('sender_id', user.id)
+
   const navItems = [
     { label: 'Home', href: `/portal/${subdomain}` },
     { label: 'Preview', href: `/portal/${subdomain}/preview` },
     { label: 'Approvals', href: `/portal/${subdomain}/approvals` },
     { label: 'Files', href: `/portal/${subdomain}/files` },
     { label: 'Updates', href: `/portal/${subdomain}/updates` },
-    { label: 'Messages', href: `/portal/${subdomain}/messages` },
+    { label: 'Messages', href: `/portal/${subdomain}/messages`, badge: unreadCount || 0 },
   ]
 
   return (
@@ -66,9 +74,14 @@ export default async function PortalLayout({
               <Link
                 key={item.href}
                 href={item.href}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white/15 text-white hover:bg-white/25"
+                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white/15 text-white hover:bg-white/25 relative"
               >
                 {item.label}
+                {'badge' in item && item.badge > 0 && (
+                  <span className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full min-w-[1.25rem] text-center">
+                    {item.badge}
+                  </span>
+                )}
               </Link>
             ))}
           </nav>

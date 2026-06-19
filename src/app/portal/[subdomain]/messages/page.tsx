@@ -89,14 +89,57 @@ export default function ClientMessagesPage() {
     setSendingMessage(false)
   }
 
+  async function markMessagesAsRead() {
+    if (!userId) return
+
+    // Mark all messages from admin (not sent by this user) as read
+    const unreadMessages = messages.filter(
+      (msg) => !msg.is_read && msg.sender_id !== userId
+    )
+
+    if (unreadMessages.length === 0) return
+
+    const { error } = await supabaseBrowser
+      .from('client_messages')
+      .update({ is_read: true })
+      .in(
+        'id',
+        unreadMessages.map((m) => m.id)
+      )
+
+    if (error) {
+      console.error('Error marking messages as read:', error)
+    } else {
+      loadMessages()
+    }
+  }
+
+  useEffect(() => {
+    if (messages.length > 0 && userId) {
+      markMessagesAsRead()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, userId])
+
   if (loading) {
     return <div className="text-white text-center py-12">Loading messages...</div>
   }
 
+  const unreadCount = messages.filter(
+    (msg) => !msg.is_read && msg.sender_id !== userId
+  ).length
+
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-white mb-2">Messages</h1>
+        <div className="flex items-center gap-3 mb-2">
+          <h1 className="text-3xl font-bold text-white">Messages</h1>
+          {unreadCount > 0 && (
+            <span className="px-3 py-1 bg-red-500 text-white text-sm font-bold rounded-full">
+              {unreadCount} new
+            </span>
+          )}
+        </div>
         <p className="text-white/70">Direct communication with your development team</p>
       </div>
 
