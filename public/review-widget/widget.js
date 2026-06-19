@@ -182,26 +182,35 @@
         return;
       }
 
+      console.log('[Review Widget] Initializing on', window.location.hostname);
       this.createContainer();
       
       // Check if user is authenticated
+      console.log('[Review Widget] Checking session...');
       const session = await this.checkSession();
+      console.log('[Review Widget] Session result:', session ? 'authenticated' : 'not authenticated');
+      
       if (!session) {
+        console.log('[Review Widget] Redirecting to login');
         this.redirectToLogin();
         return;
       }
 
       this.userId = session.user.id;
+      console.log('[Review Widget] User ID:', this.userId);
 
       // Get project for this domain
+      console.log('[Review Widget] Looking up project...');
       const project = await this.getProject();
       if (!project) {
         console.error('[Review Widget] Could not find project for this domain');
         return;
       }
 
-      this.projectId = project.id;
+      console.log('[Review Widget] Project found:', project.project.name);
+      this.projectId = project.project.id;
       await this.loadComments();
+      console.log('[Review Widget] Initialized successfully');
     }
 
     isReviewableDomain() {

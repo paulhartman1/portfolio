@@ -16,9 +16,12 @@ export async function createClient() {
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
               // Set domain to .loveondev.com for cross-subdomain auth
+              // Use SameSite=None with Secure for cross-subdomain requests
               const cookieOptions = {
                 ...options,
-                domain: process.env.NODE_ENV === 'production' ? '.loveondev.com' : undefined
+                domain: process.env.NODE_ENV === 'production' ? '.loveondev.com' : undefined,
+                sameSite: 'none' as const,
+                secure: true
               }
               cookieStore.set(name, value, cookieOptions)
             })
