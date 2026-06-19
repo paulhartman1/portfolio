@@ -24,7 +24,7 @@ export default function Home() {
             <div className="hidden md:flex space-x-8">
               <a href="#about" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">About</a>
               <a href="#projects" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Projects</a>
-              <a href="#skills" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Skills</a>
+              <a href="#services" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Services</a>
               <a href="https://tidycal.com/loveondev" target='_blank' className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Contact</a>
               <a href="/auth/login" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Login</a>
             </div>
@@ -68,33 +68,48 @@ export default function Home() {
 
       <About />
       <Projects />
-      <section id="skills" className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      <section id="services" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white to-slate-50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl lg:text-5xl font-bold text-slate-900 mb-4">
-              Skills & Technologies
+              What I Offer
             </h2>
             <div className="w-24 h-1 bg-gradient-to-r from-purple-600 to-indigo-600 mx-auto rounded-full"></div>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-2 gap-8">
             {[
-              { name: 'Inclusive Design', color: 'from-blue-400 to-cyan-400' },
-              { name: 'Accessibility (WCAG)', color: 'from-green-400 to-emerald-400' },
-              { name: 'Community Building', color: 'from-pink-400 to-rose-400' },
-              { name: 'Mentorship', color: 'from-purple-400 to-indigo-400' },
-              { name: 'React/Next.js', color: 'from-blue-500 to-purple-500' },
-              { name: 'TypeScript', color: 'from-indigo-400 to-purple-400' },
-              { name: 'Node.js', color: 'from-yellow-400 to-orange-400' },
-              { name: 'Open Source', color: 'from-orange-400 to-red-400' },
-            ].map((skill, index) => (
+              { 
+                icon: '🔧',
+                name: 'Custom Web Applications', 
+                description: 'Client portals, dashboards, and collaborative tools tailored to your workflow—no enterprise bloat.',
+                color: 'from-blue-400 to-cyan-400' 
+              },
+              { 
+                icon: '🗄️',
+                name: 'Database Design & Optimization', 
+                description: 'Fast, scalable databases using Supabase/PostgreSQL. Perfect for growing businesses.',
+                color: 'from-purple-400 to-indigo-400' 
+              },
+              { 
+                icon: '🤝',
+                name: 'Technical Advisory & Retainer Support', 
+                description: 'Your go-to expert when ISPs, vendors, or integration partners aren\'t cooperating.',
+                color: 'from-pink-400 to-rose-400' 
+              },
+              { 
+                icon: '🔗',
+                name: 'System Integration', 
+                description: 'Connect your tools so they work together seamlessly—automate the busy work.',
+                color: 'from-green-400 to-emerald-400' 
+              },
+            ].map((service, index) => (
               <div
-                key={skill.name || index}
-                className="p-6 rounded-xl bg-gradient-to-br from-slate-50 to-white border border-slate-200 hover:border-purple-300 hover:shadow-lg transition-all duration-300 hover:scale-105"
+                key={service.name || index}
+                className="p-8 rounded-xl bg-white border border-slate-200 hover:border-purple-300 hover:shadow-xl transition-all duration-300 hover:scale-105"
               >
-                <div className={`w-12 h-12 rounded-lg bg-gradient-to-r ${skill.color} mb-4 flex items-center justify-center`}>
-                  <div className="w-6 h-6 bg-white/40 rounded"></div>
-                </div>
-                <h3 className="text-slate-800 font-semibold text-lg">{skill.name}</h3>
+                <div className="text-5xl mb-4">{service.icon}</div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">{service.name}</h3>
+                <p className="text-lg text-slate-600 leading-relaxed">{service.description}</p>
               </div>
             ))}
           </div>
