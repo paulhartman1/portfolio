@@ -28,6 +28,7 @@ export default async function PortalLayout({
     { label: 'Approvals', href: `/portal/${subdomain}/approvals` },
     { label: 'Files', href: `/portal/${subdomain}/files` },
     { label: 'Updates', href: `/portal/${subdomain}/updates` },
+    { label: 'Messages', href: `/portal/${subdomain}/messages` },
   ]
 
   return (
