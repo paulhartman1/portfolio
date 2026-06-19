@@ -1,41 +1,9 @@
 // page.tsx
 'use client'
 import Image from 'next/image'
-import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import About from './components/about'
 import Projects from './components/projects'
-const AnimatedTitle = () => {
-  const roles = [
-    { text: 'ally', article: 'an' },
-    { text: 'developer', article: 'a' },
-    { text: 'father', article: 'a' },
-    { text: 'musician', article: 'a' },
-    { text: 'friend', article: 'a' }
-  ]
-
-  const [currentIndex, setCurrentIndex] = useState(0)
-
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % roles.length)
-    }, 1500)
-
-
-    return () => clearInterval(interval)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  return (
-    <h1 className="text-5xl lg:text-7xl font-bold  leading-tight bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-indigo-500 inline-block text-transparent bg-clip-text transition-all duration-5">
-      Hi! I&apos;m {roles[currentIndex].article}
-      <span className=" ">
-        &nbsp;{roles[currentIndex].text}
-      </span>
-    </h1>
-  )
-}
 
 export default function Home() {
   const router = useRouter()
@@ -69,24 +37,29 @@ export default function Home() {
       <section className="pt-32 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
           <div className="grid items-center">
-            <div className="space-y-8">
-              <div className="space-y-4">
-                <AnimatedTitle />
-                <p className="text-2xl text-white/100 leading-relaxed">
-                  Building inclusive digital spaces where everyone belongs.
-                  Passionate about collaborative development, accessible design, and creating technology that brings people together
+            <div className="space-y-8 text-center">
+              <div className="space-y-6">
+                <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 inline-block text-transparent bg-clip-text">
+                  Love On Dev
+                </h1>
+                <h2 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-white/90 leading-tight">
+                  Collaborative Technical Solutions for Mission-Driven Organizations
+                </h2>
+                <p className="text-xl md:text-2xl text-white/80 leading-relaxed max-w-3xl mx-auto">
+                  Hi, I&apos;m Paul Hartman—a technical consultant specializing in practical solutions for small businesses and nonprofits.
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <button className="z-10 px-8 py-4 border-1 border-green-500 text-white font-semibold rounded-full hover:bg-gradient-to-br from-purple-600 via-green-900 to-pink-900 hover:scale-105 transition-transform shadow-lg" onClick={() => {
                   window.open('https://tidycal.com/loveondev', '_blank')
                 }}>
-                  Let&apos;s Collaborate
+                  Book a Discovery Call
                 </button>
-                <button className="px-8 py-4 border-1 border-yellow-500 text-white font-semibold rounded-full hover:bg-gradient-to-br via-orange-900 to-red-800   hover:scale-105 transition-transform shadow-lg" onClick={() => {
-                  router.push('/auth/login')
+                <button className="px-8 py-4 border-1 border-purple-500 text-white font-semibold rounded-full hover:bg-gradient-to-br from-indigo-600 via-purple-900 to-pink-900 hover:scale-105 transition-transform shadow-lg" onClick={() => {
+                  const servicesSection = document.getElementById('projects')
+                  servicesSection?.scrollIntoView({ behavior: 'smooth' })
                 }}>
-                  Join the Community
+                  View Services
                 </button>
               </div>
             </div>
