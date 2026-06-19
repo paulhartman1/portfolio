@@ -77,7 +77,7 @@ export default async function PortalLayout({
                 className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white/15 text-white hover:bg-white/25 relative"
               >
                 {item.label}
-                {'badge' in item && item.badge > 0 && (
+                {'badge' in item && item.badge !== undefined && item.badge > 0 && (
                   <span className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full min-w-[1.25rem] text-center">
                     {item.badge}
                   </span>
