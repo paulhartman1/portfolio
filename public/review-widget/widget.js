@@ -188,19 +188,15 @@
       // Check if user is authenticated
       console.log('[Review Widget] Checking session...');
       const session = await this.checkSession();
+      
+      // Handle loop detection sentinel
+      if (session && session._loopDetected) {
+        return;  // Error already shown by checkSession
+      }
+      
       console.log('[Review Widget] Session result:', session ? 'authenticated' : 'not authenticated');
       
       if (!session) {
-        // Check if we already came back from login (loop-breaker)
-        const urlParams = new URLSearchParams(window.location.search);
-        const alreadyAuthed = urlParams.get('review_authed');
-        
-        if (alreadyAuthed) {
-          console.error('[Review Widget] Auth failed even after login redirect — stopping to avoid loop');
-          this.showPersistentError('Authentication failed. Please contact support.');
-          return;
-        }
-        
         console.log('[Review Widget] Redirecting to login');
         this.redirectToLogin();
         return;
@@ -263,6 +259,18 @@
         if (response.ok) {
           return await response.json();
         }
+        
+        // Loop-breaker: if we just came back from login but still have no session,
+        // something is broken — stop instead of redirecting again.
+        const urlParams = new URLSearchParams(window.location.search);
+        const alreadyAuthed = urlParams.get('review_authed');
+        if (alreadyAuthed && response.status === 401) {
+          console.error('[Review Widget] Auth failed even after login redirect');
+          this.showPersistentError('Authentication failed. Please contact support.');
+          // Return a special sentinel so init() knows to stop
+          return { _loopDetected: true };
+        }
+        
         return null;
       } catch (error) {
         console.error('Session check failed:', error);
