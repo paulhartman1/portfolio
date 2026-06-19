@@ -85,6 +85,14 @@ export default function LoginForm() {
           })
         })
         const result = await res.json()
+        // Check for review widget return URL first
+        const reviewWidgetReturn = sessionStorage.getItem('review_widget_return_to')
+        if (reviewWidgetReturn) {
+          sessionStorage.removeItem('review_widget_return_to')
+          window.location.href = reviewWidgetReturn
+          return
+        }
+        
         const requestedRedirect = new URLSearchParams(window.location.search).get('redirect')
         const safeRedirect = requestedRedirect?.startsWith('/') ? requestedRedirect : null
         const finalRedirect = safeRedirect || result.redirectUrl || '/dashboard'

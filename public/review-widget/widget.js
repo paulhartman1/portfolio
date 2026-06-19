@@ -245,8 +245,9 @@
     }
 
     redirectToLogin() {
-      const returnTo = encodeURIComponent(window.location.href);
-      window.location.href = `${API_BASE}/auth/login?return_to=${returnTo}`;
+      // Store return URL in sessionStorage for post-login redirect
+      sessionStorage.setItem('review_widget_return_to', window.location.href);
+      window.location.href = `${API_BASE}/auth/login`;
     }
 
     async getProject() {
