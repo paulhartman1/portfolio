@@ -371,7 +371,6 @@ export default function ClientDetailPage() {
             Messages ({messages.length})
           </h2>
           {(() => {
-            const { data: userData } = supabaseBrowser.auth.getUser()
             const unreadCount = messages.filter(
               (msg) => !msg.is_read && msg.sender_id !== clientId
             ).length
