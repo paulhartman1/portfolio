@@ -2,7 +2,7 @@
   'use strict';
   
   const API_BASE = window.location.origin.includes('localhost') 
-    ? 'http://localhost:3001'  // Portfolio dev server
+    ? 'http://localhost:3000'  // Portfolio dev server
     : 'https://loveondev.com';
   
   // Styles
@@ -191,9 +191,26 @@
       console.log('[Review Widget] Session result:', session ? 'authenticated' : 'not authenticated');
       
       if (!session) {
+        // Check if we already came back from login (loop-breaker)
+        const urlParams = new URLSearchParams(window.location.search);
+        const alreadyAuthed = urlParams.get('review_authed');
+        
+        if (alreadyAuthed) {
+          console.error('[Review Widget] Auth failed even after login redirect — stopping to avoid loop');
+          this.showPersistentError('Authentication failed. Please contact support.');
+          return;
+        }
+        
         console.log('[Review Widget] Redirecting to login');
         this.redirectToLogin();
         return;
+      }
+
+      // Clean the review_authed marker from URL if present
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('review_authed')) {
+        const cleanUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, '', cleanUrl);
       }
 
       this.userId = session.user.id;
@@ -207,8 +224,8 @@
         return;
       }
 
-      console.log('[Review Widget] Project found:', project.project.name);
-      this.projectId = project.project.id;
+      console.log('[Review Widget] Project found:', project.name);
+      this.projectId = project.id;
       await this.loadComments();
       console.log('[Review Widget] Initialized successfully');
     }
@@ -238,40 +255,13 @@
     }
 
     async checkSession() {
-      // Check for token in URL first (post-login redirect)
-      const urlParams = new URLSearchParams(window.location.search);
-      const tokenFromUrl = urlParams.get('auth_token');
-      
-      if (tokenFromUrl) {
-        console.log('[Review Widget] Got auth token from URL');
-        localStorage.setItem('review_widget_token', tokenFromUrl);
-        // Clean URL
-        const cleanUrl = window.location.pathname + window.location.hash;
-        window.history.replaceState({}, '', cleanUrl);
-      }
-      
-      // Get token from localStorage
-      const token = localStorage.getItem('review_widget_token');
-      if (!token) {
-        console.log('[Review Widget] No token found');
-        return null;
-      }
-      
       try {
         const response = await fetch(`${API_BASE}/api/review/session`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          credentials: 'include'  // Send session cookies cross-subdomain
         });
         
         if (response.ok) {
           return await response.json();
-        }
-        
-        // Token invalid, clear it
-        if (response.status === 401) {
-          console.log('[Review Widget] Token invalid, clearing');
-          localStorage.removeItem('review_widget_token');
         }
         return null;
       } catch (error) {
@@ -281,8 +271,7 @@
     }
 
     redirectToLogin() {
-      // Pass return URL as query param (sessionStorage is origin-scoped and
-      // won't survive the cross-subdomain hop to loveondev.com)
+      // Pass return URL as query param
       const returnTo = encodeURIComponent(window.location.href);
       window.location.href = `${API_BASE}/auth/login?review_return=${returnTo}`;
     }
@@ -290,17 +279,14 @@
     async getProject() {
       try {
         const domain = window.location.hostname;
-        const token = localStorage.getItem('review_widget_token');
         const response = await fetch(
           `${API_BASE}/api/review/projects?domain=${encodeURIComponent(domain)}`,
-          {
-            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-          }
+          { credentials: 'include' }
         );
         
         if (response.ok) {
           const data = await response.json();
-          return data;
+          return data.project;  // API returns { project: {...} }
         }
         return null;
       } catch (error) {
@@ -329,11 +315,8 @@
 
     async loadComments() {
       try {
-        const token = localStorage.getItem('review_widget_token');
         const url = `${API_BASE}/api/review/comments?project_id=${this.projectId}&url=${encodeURIComponent(window.location.pathname)}`;
-        const response = await fetch(url, {
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-        });
+        const response = await fetch(url, { credentials: 'include' });
         
         if (response.ok) {
           this.comments = await response.json();
@@ -402,13 +385,10 @@
 
     async createComment(x, y, text, priority) {
       try {
-        const token = localStorage.getItem('review_widget_token');
         const response = await fetch(`${API_BASE}/api/review/comments`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             project_id: this.projectId,
             url: window.location.pathname,
@@ -465,13 +445,9 @@
 
     async deleteComment(commentId) {
       try {
-        const token = localStorage.getItem('review_widget_token');
         const response = await fetch(
           `${API_BASE}/api/review/comments?id=${commentId}`,
-          {
-            method: 'DELETE',
-            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-          }
+          { method: 'DELETE', credentials: 'include' }
         );
         
         if (response.ok) {
@@ -515,6 +491,16 @@
       notification.textContent = message;
       document.body.appendChild(notification);
       setTimeout(() => notification.remove(), 3000);
+    }
+
+    showPersistentError(message) {
+      // Show an error that doesn't auto-dismiss (for critical failures)
+      const error = document.createElement('div');
+      error.className = 'crw-notification crw-notification-error';
+      error.style.cursor = 'pointer';
+      error.textContent = message + ' (click to dismiss)';
+      error.addEventListener('click', () => error.remove());
+      document.body.appendChild(error);
     }
   }
 

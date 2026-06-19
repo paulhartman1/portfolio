@@ -14,17 +14,9 @@ export async function createClient() {
         },
         setAll(cookiesToSet) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              // Set domain to .loveondev.com for cross-subdomain auth
-              // Use SameSite=None with Secure for cross-subdomain requests
-              const cookieOptions = {
-                ...options,
-                domain: process.env.NODE_ENV === 'production' ? '.loveondev.com' : undefined,
-                sameSite: 'none' as const,
-                secure: true
-              }
-              cookieStore.set(name, value, cookieOptions)
-            })
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
           } catch {
             // The `setAll` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing

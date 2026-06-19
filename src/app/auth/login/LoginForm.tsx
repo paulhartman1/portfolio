@@ -31,16 +31,16 @@ export default function LoginForm() {
   }, [])
 
   // If the user already has a session and arrived here from the review widget,
-  // immediately bounce back to the widget site with a fresh access token.
+  // immediately bounce back to the widget site. The session cookie is shared
+  // across loveondev.com subdomains, so we only pass a marker (not a token).
   useEffect(() => {
     const reviewReturn = new URLSearchParams(window.location.search).get('review_return')
     if (!reviewReturn || !isLoveondevSubdomain(reviewReturn)) return
 
     supabaseBrowser.auth.getSession().then(({ data }) => {
-      const accessToken = data.session?.access_token
-      if (accessToken) {
+      if (data.session) {
         const separator = reviewReturn.includes('?') ? '&' : '?'
-        window.location.href = `${reviewReturn}${separator}auth_token=${accessToken}`
+        window.location.href = `${reviewReturn}${separator}review_authed=1`
       }
     })
   }, [])
@@ -116,9 +116,11 @@ export default function LoginForm() {
         // Check for review widget return URL (passed as query param)
         const reviewReturn = new URLSearchParams(window.location.search).get('review_return')
         if (reviewReturn && isLoveondevSubdomain(reviewReturn)) {
-          // Append access token so the widget can authenticate
+          // The session cookie is now set on loveondev.com (shared across
+          // subdomains). Bounce back with a marker so the widget can detect a
+          // post-login return and break the loop if auth still fails.
           const separator = reviewReturn.includes('?') ? '&' : '?'
-          window.location.href = `${reviewReturn}${separator}auth_token=${sessionData.access_token}`
+          window.location.href = `${reviewReturn}${separator}review_authed=1`
           return
         }
         
