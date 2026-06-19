@@ -11,7 +11,7 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-100" >
 
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 backdrop-blur-md bg-slate-900/95 border-b border-slate-700/50 shadow-lg">
+      <nav className="fixed top-0 w-full z-50 backdrop-blur-md bg-purple-900/95 border-b border-purple-700/50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent">
