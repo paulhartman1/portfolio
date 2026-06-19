@@ -47,12 +47,17 @@ export default async function ClientPortalPage({
                 : 'Your project is on track. No immediate action needed right now.'}
             </p>
           </div>
-          <Link
-            href={`/portal/${subdomain}/preview`}
-            className="px-5 py-3 rounded-lg bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:scale-105 transition-transform"
+          <a
+            href={project.url || `https://${subdomain}.loveondev.com`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:scale-105 transition-transform"
           >
-            Open Preview
-          </Link>
+            Open Preview Site
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
         </div>
       </section>
 
