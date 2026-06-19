@@ -8,10 +8,10 @@ import Projects from './components/projects'
 export default function Home() {
   const router = useRouter()
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black-900 from-40%  to-purple-900 to-90%" >
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-100" >
 
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 backdrop-blur-md bg-white/10 border-b border-white/20">
+      <nav className="fixed top-0 w-full z-50 backdrop-blur-md bg-slate-900/95 border-b border-slate-700/50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent">
@@ -24,11 +24,11 @@ export default function Home() {
               />
             </div>
             <div className="hidden md:flex space-x-8">
-              <a href="#about" className="text-white/80 hover:text-white transition-colors">About</a>
-              <a href="#projects" className="text-white/80 hover:text-white transition-colors">Projects</a>
-              <a href="#skills" className="text-white/80 hover:text-white transition-colors">Skills</a>
-              <a href="https://tidycal.com/loveondev" target='_blank' className="text-white/80 hover:text-white transition-colors">Contact</a>
-              <a href="/auth/login" className="text-white/80 hover:text-white transition-colors">Login</a>
+              <a href="#about" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">About</a>
+              <a href="#projects" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Projects</a>
+              <a href="#skills" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Skills</a>
+              <a href="https://tidycal.com/loveondev" target='_blank' className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Contact</a>
+              <a href="/auth/login" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Login</a>
             </div>
           </div>
         </div>
@@ -42,20 +42,20 @@ export default function Home() {
                 <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 inline-block text-transparent bg-clip-text">
                   Love On Dev
                 </h1>
-                <h2 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-white/90 leading-tight">
+                <h2 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-slate-700 leading-tight">
                   Collaborative Technical Solutions for Mission-Driven Organizations
                 </h2>
-                <p className="text-xl md:text-2xl text-white/80 leading-relaxed max-w-3xl mx-auto">
+                <p className="text-xl md:text-2xl text-slate-600 leading-relaxed max-w-3xl mx-auto">
                   Hi, I&apos;m Paul Hartman—a technical consultant specializing in practical solutions for small businesses and nonprofits.
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button className="z-10 px-8 py-4 border-1 border-green-500 text-white font-semibold rounded-full hover:bg-gradient-to-br from-purple-600 via-green-900 to-pink-900 hover:scale-105 transition-transform shadow-lg" onClick={() => {
+                <button className="z-10 px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-full hover:from-purple-700 hover:to-indigo-700 hover:scale-105 transition-all shadow-lg hover:shadow-xl" onClick={() => {
                   window.open('https://tidycal.com/loveondev', '_blank')
                 }}>
                   Book a Discovery Call
                 </button>
-                <button className="px-8 py-4 border-1 border-purple-500 text-white font-semibold rounded-full hover:bg-gradient-to-br from-indigo-600 via-purple-900 to-pink-900 hover:scale-105 transition-transform shadow-lg" onClick={() => {
+                <button className="px-8 py-4 border-2 border-purple-600 text-purple-600 font-semibold rounded-full hover:bg-purple-600 hover:text-white hover:scale-105 transition-all shadow-md" onClick={() => {
                   const servicesSection = document.getElementById('projects')
                   servicesSection?.scrollIntoView({ behavior: 'smooth' })
                 }}>
@@ -70,13 +70,13 @@ export default function Home() {
 
       <About />
       <Projects />
-      <section id="skills" className="py-20 px-4 sm:px-6 lg:px-8">
+      <section id="skills" className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl lg:text-5xl font-bold text-white mb-4">
+            <h2 className="text-4xl lg:text-5xl font-bold text-slate-900 mb-4">
               Skills & Technologies
             </h2>
-            <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-green-400 mx-auto rounded-full"></div>
+            <div className="w-24 h-1 bg-gradient-to-r from-purple-600 to-indigo-600 mx-auto rounded-full"></div>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
@@ -91,12 +91,12 @@ export default function Home() {
             ].map((skill, index) => (
               <div
                 key={skill.name || index}
-                className="p-6 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-300 hover:scale-105"
+                className="p-6 rounded-xl bg-gradient-to-br from-slate-50 to-white border border-slate-200 hover:border-purple-300 hover:shadow-lg transition-all duration-300 hover:scale-105"
               >
                 <div className={`w-12 h-12 rounded-lg bg-gradient-to-r ${skill.color} mb-4 flex items-center justify-center`}>
-                  <div className="w-6 h-6 bg-white/30 rounded"></div>
+                  <div className="w-6 h-6 bg-white/40 rounded"></div>
                 </div>
-                <h3 className="text-white font-semibold text-lg">{skill.name}</h3>
+                <h3 className="text-slate-800 font-semibold text-lg">{skill.name}</h3>
               </div>
             ))}
           </div>
