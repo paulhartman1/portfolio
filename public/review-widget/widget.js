@@ -3,7 +3,7 @@
   
   const API_BASE = window.location.origin.includes('localhost') 
     ? 'http://localhost:3000'  // Portfolio dev server
-    : 'https://loveondev.com';
+    : 'https://www.loveondev.com';  // Production uses www subdomain
   
   // Styles
   const styles = `

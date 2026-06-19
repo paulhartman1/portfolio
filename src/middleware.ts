@@ -6,7 +6,10 @@ function isAllowedOrigin(origin: string | null): boolean {
   try {
     const { hostname } = new URL(origin)
     if (hostname === 'localhost' || hostname === '127.0.0.1') return true
-    return hostname === 'loveondev.com' || hostname.endsWith('.loveondev.com')
+    // Allow loveondev.com, www.loveondev.com, and any subdomain
+    return hostname === 'loveondev.com' || 
+           hostname === 'www.loveondev.com' || 
+           hostname.endsWith('.loveondev.com')
   } catch {
     return false
   }
