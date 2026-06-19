@@ -199,6 +199,7 @@ CREATE POLICY "Admins can manage projects"
 
 DROP POLICY IF EXISTS "Users can view comments" ON public.review_comments;
 DROP POLICY IF EXISTS "Clients can create comments" ON public.review_comments;
+DROP POLICY IF EXISTS "Clients can delete own comments" ON public.review_comments;
 DROP POLICY IF EXISTS "Admins can manage comments" ON public.review_comments;
 
 CREATE POLICY "Users can view comments"
@@ -216,6 +217,10 @@ CREATE POLICY "Clients can create comments"
       AND p.client_id = auth.uid()
     )
   );
+
+CREATE POLICY "Clients can delete own comments"
+  ON public.review_comments FOR DELETE
+  USING (client_id = auth.uid());
 
 CREATE POLICY "Admins can manage comments"
   ON public.review_comments FOR ALL

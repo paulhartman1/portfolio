@@ -48,6 +48,7 @@ CREATE POLICY "Admins can manage projects"
 -- Fix review_comments policies
 DROP POLICY IF EXISTS "Clients can view comments on their projects" ON review_comments;
 DROP POLICY IF EXISTS "Clients can create comments on their projects" ON review_comments;
+DROP POLICY IF EXISTS "Clients can delete own comments" ON review_comments;
 DROP POLICY IF EXISTS "Admins can view all comments" ON review_comments;
 DROP POLICY IF EXISTS "Admins can manage all comments" ON review_comments;
 
@@ -67,6 +68,10 @@ CREATE POLICY "Clients can create comments"
       AND projects.client_id = auth.uid()
     )
   );
+
+CREATE POLICY "Clients can delete own comments"
+  ON review_comments FOR DELETE
+  USING (client_id = auth.uid());
 
 CREATE POLICY "Admins can manage comments"
   ON review_comments FOR ALL

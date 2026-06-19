@@ -214,15 +214,25 @@ export async function DELETE(request: NextRequest) {
     )
   }
   
-  // Delete comment
-  const { error } = await supabase
+  // Delete comment and verify a row was actually removed. With RLS, Supabase can
+  // return no error while deleting zero rows if the delete policy blocks access.
+  const { data: deletedComment, error } = await supabase
     .from('review_comments')
     .delete()
     .eq('id', commentId)
+    .select('id')
+    .single()
   
   if (error) {
     return NextResponse.json(
       { error: error.message },
+      { status: 500 }
+    )
+  }
+
+  if (!deletedComment) {
+    return NextResponse.json(
+      { error: 'Comment was not deleted' },
       { status: 500 }
     )
   }
