@@ -46,10 +46,10 @@ export default function About() {
             </p>
           </div>
           <div className="relative">
-            <div className="relative w-full h-80 rounded-xl overflow-hidden shadow-xl hidden lg:block ">
+            <div className="relative w-full h-80 rounded-xl overflow-hidden border-4 border-white shadow-2xl hidden lg:block bg-gradient-to-br from-purple-50 to-indigo-100">
               <Image
                 src="/aiheadshot.png"
-                alt="About me"
+                alt="Paul Hartman - Technical Consultant at Love On Dev"
                 fill
                 objectFit='contain'
               />
