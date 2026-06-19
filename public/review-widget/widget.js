@@ -281,9 +281,10 @@
     }
 
     redirectToLogin() {
-      // Store return URL in sessionStorage for post-login redirect
-      sessionStorage.setItem('review_widget_return_to', window.location.href);
-      window.location.href = `${API_BASE}/auth/login`;
+      // Pass return URL as query param (sessionStorage is origin-scoped and
+      // won't survive the cross-subdomain hop to loveondev.com)
+      const returnTo = encodeURIComponent(window.location.href);
+      window.location.href = `${API_BASE}/auth/login?review_return=${returnTo}`;
     }
 
     async getProject() {

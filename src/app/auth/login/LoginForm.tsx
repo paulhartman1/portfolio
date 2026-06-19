@@ -3,6 +3,19 @@
 import { useState, useEffect } from 'react'
 import { supabaseBrowser } from '@/utils/supabase/client'
 
+// Only allow redirects back to loveondev.com subdomains (or localhost in dev)
+function isLoveondevSubdomain(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    const host = parsed.hostname
+    if (host === 'localhost' || host === '127.0.0.1') return true
+    const parts = host.split('.')
+    return parts.length >= 3 && parts.slice(-2).join('.') === 'loveondev.com'
+  } catch {
+    return false
+  }
+}
+
 export default function LoginForm() {
   const [mode, setMode] = useState<'password' | 'magic-link'>('password')
   const [email, setEmail] = useState('')
@@ -15,6 +28,21 @@ export default function LoginForm() {
 
   useEffect(() => {
     setIsLocalhost(window.location.hostname === 'localhost')
+  }, [])
+
+  // If the user already has a session and arrived here from the review widget,
+  // immediately bounce back to the widget site with a fresh access token.
+  useEffect(() => {
+    const reviewReturn = new URLSearchParams(window.location.search).get('review_return')
+    if (!reviewReturn || !isLoveondevSubdomain(reviewReturn)) return
+
+    supabaseBrowser.auth.getSession().then(({ data }) => {
+      const accessToken = data.session?.access_token
+      if (accessToken) {
+        const separator = reviewReturn.includes('?') ? '&' : '?'
+        window.location.href = `${reviewReturn}${separator}auth_token=${accessToken}`
+      }
+    })
   }, [])
 
   async function sendMagicLink(e: React.FormEvent) {
@@ -85,13 +113,12 @@ export default function LoginForm() {
           })
         })
         const result = await res.json()
-        // Check for review widget return URL first
-        const reviewWidgetReturn = sessionStorage.getItem('review_widget_return_to')
-        if (reviewWidgetReturn) {
-          sessionStorage.removeItem('review_widget_return_to')
-          // Append access token to URL
-          const separator = reviewWidgetReturn.includes('?') ? '&' : '?'
-          window.location.href = `${reviewWidgetReturn}${separator}auth_token=${sessionData.access_token}`
+        // Check for review widget return URL (passed as query param)
+        const reviewReturn = new URLSearchParams(window.location.search).get('review_return')
+        if (reviewReturn && isLoveondevSubdomain(reviewReturn)) {
+          // Append access token so the widget can authenticate
+          const separator = reviewReturn.includes('?') ? '&' : '?'
+          window.location.href = `${reviewReturn}${separator}auth_token=${sessionData.access_token}`
           return
         }
         
