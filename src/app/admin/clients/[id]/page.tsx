@@ -38,6 +38,20 @@ type Comment = {
   }
 }
 
+type Message = {
+  id: string
+  client_id: string
+  sender_id: string
+  message: string
+  is_read: boolean
+  created_at: string
+  sender: {
+    display_name: string | null
+    email: string
+    is_admin: boolean
+  }
+}
+
 export default function ClientDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -46,10 +60,13 @@ export default function ClientDetailPage() {
   const [client, setClient] = useState<Profile | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
   const [comments, setComments] = useState<Comment[]>([])
+  const [messages, setMessages] = useState<Message[]>([])
   const [allProjects, setAllProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [assigningProject, setAssigningProject] = useState(false)
   const [selectedProjectId, setSelectedProjectId] = useState('')
+  const [newMessage, setNewMessage] = useState('')
+  const [sendingMessage, setSendingMessage] = useState(false)
 
   useEffect(() => {
     loadClientData()
@@ -94,6 +111,22 @@ export default function ClientDetailPage() {
       .order('created_at', { ascending: false })
 
     setComments(commentsData || [])
+
+    // Load messages
+    const { data: messagesData } = await supabaseBrowser
+      .from('client_messages')
+      .select(`
+        *,
+        sender:sender_id (
+          display_name,
+          email,
+          is_admin
+        )
+      `)
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: true })
+
+    setMessages(messagesData || [])
 
     // Load all projects for assignment dropdown
     const { data: allProjectsData } = await supabaseBrowser
@@ -152,6 +185,36 @@ export default function ClientDetailPage() {
     } else {
       loadClientData()
     }
+  }
+
+  async function sendMessage() {
+    if (!newMessage.trim()) return
+
+    setSendingMessage(true)
+    const { data: userData } = await supabaseBrowser.auth.getUser()
+    
+    if (!userData.user) {
+      alert('You must be logged in to send messages')
+      setSendingMessage(false)
+      return
+    }
+
+    const { error } = await supabaseBrowser
+      .from('client_messages')
+      .insert({
+        client_id: clientId,
+        sender_id: userData.user.id,
+        message: newMessage.trim(),
+      })
+
+    if (error) {
+      console.error('Error sending message:', error)
+      alert('Failed to send message')
+    } else {
+      setNewMessage('')
+      loadClientData()
+    }
+    setSendingMessage(false)
   }
 
   const getPriorityColor = (priority: string) => {
@@ -266,6 +329,76 @@ export default function ClientDetailPage() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Messages Section */}
+      <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 mb-6">
+        <h2 className="text-2xl font-semibold text-white mb-4">
+          Messages ({messages.length})
+        </h2>
+
+        {/* Messages Thread */}
+        <div className="space-y-3 mb-4 max-h-96 overflow-y-auto">
+          {messages.length === 0 ? (
+            <p className="text-white/60 text-center py-6">No messages yet</p>
+          ) : (
+            messages.map((msg) => {
+              const isAdmin = msg.sender?.is_admin || false
+              return (
+                <div
+                  key={msg.id}
+                  className={`p-4 rounded-lg ${
+                    isAdmin
+                      ? 'bg-purple-500/20 border border-purple-500/30 ml-8'
+                      : 'bg-white/5 border border-white/20 mr-8'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-white">
+                        {msg.sender?.display_name || msg.sender?.email || 'Unknown'}
+                      </span>
+                      {isAdmin && (
+                        <span className="px-2 py-0.5 bg-purple-500/50 text-purple-100 text-xs rounded uppercase font-semibold">
+                          Admin
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-white/50">
+                      {new Date(msg.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-white/90 whitespace-pre-wrap">{msg.message}</p>
+                </div>
+              )
+            })
+          )}
+        </div>
+
+        {/* Send Message Form */}
+        <div className="space-y-2">
+          <textarea
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                sendMessage()
+              }
+            }}
+            placeholder="Type your message... (Ctrl/Cmd+Enter to send)"
+            className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/20 text-white placeholder:text-white/40 resize-none focus:outline-none focus:border-purple-500/50"
+            rows={3}
+          />
+          <div className="flex justify-end">
+            <button
+              onClick={sendMessage}
+              disabled={!newMessage.trim() || sendingMessage}
+              className="px-6 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+            >
+              {sendingMessage ? 'Sending...' : 'Send Message'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Comments Section */}
