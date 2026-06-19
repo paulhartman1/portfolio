@@ -1,12 +1,10 @@
 // page.tsx
 'use client'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
 import About from './components/about'
 import Projects from './components/projects'
 
 export default function Home() {
-  const router = useRouter()
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-100" >
 
