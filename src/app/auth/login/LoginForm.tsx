@@ -89,7 +89,9 @@ export default function LoginForm() {
         const reviewWidgetReturn = sessionStorage.getItem('review_widget_return_to')
         if (reviewWidgetReturn) {
           sessionStorage.removeItem('review_widget_return_to')
-          window.location.href = reviewWidgetReturn
+          // Append access token to URL
+          const separator = reviewWidgetReturn.includes('?') ? '&' : '?'
+          window.location.href = `${reviewWidgetReturn}${separator}auth_token=${sessionData.access_token}`
           return
         }
         

@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
+
+import { getAuthenticatedUser } from '../_lib'
 
 // GET - List comments for a project/URL
 export async function GET(request: NextRequest) {
-  const supabase = await createClient()
+  const { user, supabase } = await getAuthenticatedUser(request)
   
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  
-  if (authError || !user) {
+  if (!user) {
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }
@@ -80,11 +79,9 @@ export async function GET(request: NextRequest) {
 
 // POST - Create a comment
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
+  const { user, supabase } = await getAuthenticatedUser(request)
   
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  
-  if (authError || !user) {
+  if (!user) {
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }
@@ -168,11 +165,9 @@ export async function POST(request: NextRequest) {
 
 // DELETE - Delete a comment
 export async function DELETE(request: NextRequest) {
-  const supabase = await createClient()
+  const { user, supabase } = await getAuthenticatedUser(request)
   
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  
-  if (authError || !user) {
+  if (!user) {
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }

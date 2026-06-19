@@ -238,13 +238,40 @@
     }
 
     async checkSession() {
+      // Check for token in URL first (post-login redirect)
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenFromUrl = urlParams.get('auth_token');
+      
+      if (tokenFromUrl) {
+        console.log('[Review Widget] Got auth token from URL');
+        localStorage.setItem('review_widget_token', tokenFromUrl);
+        // Clean URL
+        const cleanUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, '', cleanUrl);
+      }
+      
+      // Get token from localStorage
+      const token = localStorage.getItem('review_widget_token');
+      if (!token) {
+        console.log('[Review Widget] No token found');
+        return null;
+      }
+      
       try {
         const response = await fetch(`${API_BASE}/api/review/session`, {
-          credentials: 'include'
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         });
         
         if (response.ok) {
           return await response.json();
+        }
+        
+        // Token invalid, clear it
+        if (response.status === 401) {
+          console.log('[Review Widget] Token invalid, clearing');
+          localStorage.removeItem('review_widget_token');
         }
         return null;
       } catch (error) {
@@ -262,14 +289,17 @@
     async getProject() {
       try {
         const domain = window.location.hostname;
+        const token = localStorage.getItem('review_widget_token');
         const response = await fetch(
           `${API_BASE}/api/review/projects?domain=${encodeURIComponent(domain)}`,
-          { credentials: 'include' }
+          {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+          }
         );
         
         if (response.ok) {
           const data = await response.json();
-          return data.project;
+          return data;
         }
         return null;
       } catch (error) {
@@ -298,9 +328,10 @@
 
     async loadComments() {
       try {
+        const token = localStorage.getItem('review_widget_token');
         const url = `${API_BASE}/api/review/comments?project_id=${this.projectId}&url=${encodeURIComponent(window.location.pathname)}`;
         const response = await fetch(url, {
-          credentials: 'include'
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });
         
         if (response.ok) {
@@ -370,12 +401,13 @@
 
     async createComment(x, y, text, priority) {
       try {
+        const token = localStorage.getItem('review_widget_token');
         const response = await fetch(`${API_BASE}/api/review/comments`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
           },
-          credentials: 'include',
           body: JSON.stringify({
             project_id: this.projectId,
             url: window.location.pathname,
@@ -432,11 +464,12 @@
 
     async deleteComment(commentId) {
       try {
+        const token = localStorage.getItem('review_widget_token');
         const response = await fetch(
           `${API_BASE}/api/review/comments?id=${commentId}`,
           {
             method: 'DELETE',
-            credentials: 'include'
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
           }
         );
         
