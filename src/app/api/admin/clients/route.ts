@@ -58,19 +58,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: createUserError?.message || 'Failed to create user' }, { status: 400 })
     }
 
+    // Profile is automatically created by the handle_new_user() trigger
+    // Update it with the additional fields that the trigger doesn't handle
     const { error: profileError } = await serviceRole
       .from('profiles')
-      .upsert({
-        id: createdUser.user.id,
-        email,
-        display_name: displayName,
+      .update({
         first_name: firstName,
         last_name: lastName,
         company,
         phone,
         pronouns,
-        is_admin: false,
       })
+      .eq('id', createdUser.user.id)
 
     if (profileError) {
       return NextResponse.json({ error: profileError.message }, { status: 400 })
