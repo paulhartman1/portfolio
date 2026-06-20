@@ -33,6 +33,7 @@ export default async function PortalLayout({
   const navItems = [
     { label: 'Home', href: `/portal/${subdomain}` },
     { label: 'Preview', href: `/portal/${subdomain}/preview` },
+    { label: 'Journey', href: `/portal/${subdomain}/journey` },
     { label: 'Approvals', href: `/portal/${subdomain}/approvals` },
     { label: 'Files', href: `/portal/${subdomain}/files` },
     { label: 'Updates', href: `/portal/${subdomain}/updates` },
