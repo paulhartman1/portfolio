@@ -56,6 +56,12 @@ export default async function AdminLayout({
               >
                 Comments
               </Link>
+              <Link
+                href="/admin/journey"
+                className="inline-flex items-center px-4 text-white hover:text-white/80 font-medium"
+              >
+                Journey Maps
+              </Link>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-white/80 text-sm">Admin: {user.email}</span>
