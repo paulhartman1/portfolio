@@ -13,6 +13,7 @@ interface StickyNoteProps {
   width: number
   height: number
   onUpdate: (id: string, updates: { content?: string; x?: number; y?: number; color?: NoteColor }) => void
+  onDelete?: (id: string) => void
   readOnly?: boolean
 }
 
@@ -39,6 +40,7 @@ export default function StickyNote({
   width,
   height,
   onUpdate,
+  onDelete,
   readOnly = false,
 }: StickyNoteProps) {
   const [isEditing, setIsEditing] = useState(false)
@@ -97,7 +99,18 @@ export default function StickyNote({
       }}
     >
       <div className="p-3 h-full flex flex-col">
-        <div className="text-xs font-semibold mb-2 opacity-60">{colorLabels[color]}</div>
+        <div className="flex justify-between items-center mb-2">
+          <div className="text-xs font-semibold opacity-60">{colorLabels[color]}</div>
+          {!readOnly && onDelete && (
+            <button
+              onClick={() => onDelete(id)}
+              className="text-gray-600 hover:text-red-600 text-xs font-bold"
+              title="Delete note"
+            >
+              ✕
+            </button>
+          )}
+        </div>
         {isEditing ? (
           <textarea
             value={editContent}

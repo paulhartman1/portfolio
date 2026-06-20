@@ -17,6 +17,11 @@ type Note = {
   height: number
 }
 
+type Connector = {
+  fromId: string
+  toId: string
+}
+
 type JourneyMap = {
   id: string
   project_id: string
@@ -37,6 +42,7 @@ export default function EditJourneyMapPage() {
 
   const [journeyMap, setJourneyMap] = useState<JourneyMap | null>(null)
   const [notes, setNotes] = useState<Note[]>([])
+  const [connectors, setConnectors] = useState<Connector[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
@@ -94,6 +100,24 @@ export default function EditJourneyMapPage() {
       })) || []
 
     setNotes(formattedNotes)
+
+    // Load connectors
+    const { data: connectorsData, error: connectorsError } = await supabaseBrowser
+      .from('journey_map_connectors')
+      .select('from_note_id, to_note_id')
+      .eq('map_id', mapId)
+
+    if (connectorsError) {
+      console.error('Error loading connectors:', connectorsError)
+    }
+
+    const formattedConnectors: Connector[] =
+      connectorsData?.map((conn) => ({
+        fromId: conn.from_note_id,
+        toId: conn.to_note_id,
+      })) || []
+
+    setConnectors(formattedConnectors)
     setLoading(false)
   }
 
@@ -102,16 +126,20 @@ export default function EditJourneyMapPage() {
     setHasUnsavedChanges(true)
   }
 
+  function handleConnectorsChange(updatedConnectors: Connector[]) {
+    setConnectors(updatedConnectors)
+    setHasUnsavedChanges(true)
+  }
+
   async function saveChanges() {
     setSaving(true)
 
-    // Delete all existing notes for this map
-    await supabaseBrowser
-      .from('journey_map_notes')
-      .delete()
-      .eq('map_id', mapId)
+    // Delete all existing notes and connectors for this map
+    await supabaseBrowser.from('journey_map_notes').delete().eq('map_id', mapId)
+    await supabaseBrowser.from('journey_map_connectors').delete().eq('map_id', mapId)
 
-    // Insert all notes
+    // Insert all notes and get back their IDs
+    const idMapping = new Map<string, string>()
     if (notes.length > 0) {
       const notesToInsert = notes.map((note, index) => ({
         map_id: mapId,
@@ -124,15 +152,47 @@ export default function EditJourneyMapPage() {
         z_index: index,
       }))
 
-      const { error } = await supabaseBrowser
+      const { data: insertedNotes, error: notesError } = await supabaseBrowser
         .from('journey_map_notes')
         .insert(notesToInsert)
+        .select('id')
 
-      if (error) {
-        console.error('Error saving notes:', error)
+      if (notesError) {
+        console.error('Error saving notes:', notesError)
         alert('Failed to save notes')
         setSaving(false)
         return
+      }
+
+      // Build mapping from old client IDs to new DB IDs
+      if (insertedNotes) {
+        notes.forEach((note, idx) => {
+          idMapping.set(note.id, insertedNotes[idx].id)
+        })
+      }
+    }
+
+    // Insert connectors with mapped IDs
+    if (connectors.length > 0 && idMapping.size > 0) {
+      const connectorsToInsert = connectors
+        .filter((conn) => idMapping.has(conn.fromId) && idMapping.has(conn.toId))
+        .map((conn) => ({
+          map_id: mapId,
+          from_note_id: idMapping.get(conn.fromId)!,
+          to_note_id: idMapping.get(conn.toId)!,
+        }))
+
+      if (connectorsToInsert.length > 0) {
+        const { error: connectorsError } = await supabaseBrowser
+          .from('journey_map_connectors')
+          .insert(connectorsToInsert)
+
+        if (connectorsError) {
+          console.error('Error saving connectors:', connectorsError)
+          alert('Failed to save connectors')
+          setSaving(false)
+          return
+        }
       }
     }
 
@@ -195,6 +255,8 @@ export default function EditJourneyMapPage() {
           initialNotes={notes}
           readOnly={false}
           onNotesChange={handleNotesChange}
+          initialConnectors={connectors}
+          onConnectorsChange={handleConnectorsChange}
         />
       </div>
     </div>
