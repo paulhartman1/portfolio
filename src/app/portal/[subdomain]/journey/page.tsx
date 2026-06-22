@@ -1,4 +1,8 @@
-import { getPortalContext } from '../_lib'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
+import { supabaseBrowser } from '@/utils/supabase/client'
 import JourneyCanvas from '@/components/journey/JourneyCanvas'
 
 type Note = {
@@ -11,83 +15,154 @@ type Note = {
   height: number
 }
 
-export default async function PortalJourneyMapPage({
-  params,
-}: {
-  params: Promise<{ subdomain: string }>
-}) {
-  const { subdomain } = await params
-  const { project, supabase, hasAccess } = await getPortalContext(subdomain)
+type Connector = {
+  fromId: string
+  toId: string
+}
 
-  if (!hasAccess) return null
+export default function PortalJourneyMapPage() {
+  const params = useParams()
+  const subdomain = params.subdomain as string
+  
+  const [project, setProject] = useState<any>(null)
+  const [journeyMaps, setJourneyMaps] = useState<any[]>([])
+  const [selectedMapId, setSelectedMapId] = useState<string | null>(null)
+  const [notes, setNotes] = useState<Note[]>([])
+  const [connectors, setConnectors] = useState<Connector[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Fetch journey map for this project
-  const { data: journeyMap, error: mapError } = await supabase
-    .from('journey_maps')
-    .select('*')
-    .eq('project_id', project.id)
-    .single()
+  useEffect(() => {
+    loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subdomain])
 
-  if (mapError && mapError.code !== 'PGRST116') {
-    console.error('Error fetching journey map:', mapError)
+  async function loadData() {
+    setLoading(true)
+
+    // Get user and project
+    const { data: { user } } = await supabaseBrowser.auth.getUser()
+    if (!user) {
+      window.location.href = `/auth/login?redirect=/portal/${subdomain}/journey`
+      return
+    }
+
+    const { data: projectData } = await supabaseBrowser
+      .from('projects')
+      .select('*')
+      .eq('subdomain', subdomain)
+      .single()
+
+    if (!projectData || projectData.client_id !== user.id) {
+      setLoading(false)
+      return
+    }
+
+    setProject(projectData)
+
+    // Fetch all journey maps for this project
+    const { data: maps, error: mapError } = await supabaseBrowser
+      .from('journey_maps')
+      .select('*')
+      .eq('project_id', projectData.id)
+      .order('created_at', { ascending: true })
+
+    if (mapError) {
+      console.error('Error fetching journey maps:', mapError)
+    }
+
+    const journeyMaps = maps || []
+    setJourneyMaps(journeyMaps)
+
+    // Select the first map by default if there is one
+    if (journeyMaps.length > 0 && !selectedMapId) {
+      setSelectedMapId(journeyMaps[0].id)
+      await loadNotesForMap(journeyMaps[0].id)
+    }
+
+    setLoading(false)
   }
 
-  // Fetch notes if map exists
-  let notes: Array<{
-    id: string
-    content: string
-    color: string
-    x_position: string
-    y_position: string
-    width: string
-    height: string
-  }> = []
-  if (journeyMap) {
-    const { data: fetchedNotes, error: notesError } = await supabase
+  async function loadNotesForMap(mapId: string) {
+    const { data: fetchedNotes, error: notesError } = await supabaseBrowser
       .from('journey_map_notes')
       .select('*')
-      .eq('map_id', journeyMap.id)
+      .eq('map_id', mapId)
       .order('z_index', { ascending: true })
 
     if (notesError) {
       console.error('Error fetching notes:', notesError)
-    } else {
-      notes = fetchedNotes || []
+      return
     }
+
+    const formattedNotes: Note[] = (fetchedNotes || []).map((note) => ({
+      id: note.id,
+      content: note.content,
+      color: note.color as 'blue' | 'green' | 'red' | 'yellow',
+      x: parseFloat(note.x_position),
+      y: parseFloat(note.y_position),
+      width: parseFloat(note.width),
+      height: parseFloat(note.height),
+    }))
+
+    setNotes(formattedNotes)
   }
 
-  const formattedNotes: Note[] = notes.map((note) => ({
-    id: note.id,
-    content: note.content,
-    color: note.color as 'blue' | 'green' | 'red' | 'yellow',
-    x: parseFloat(note.x_position),
-    y: parseFloat(note.y_position),
-    width: parseFloat(note.width),
-    height: parseFloat(note.height),
-  }))
+  async function handleMapChange(mapId: string) {
+    setSelectedMapId(mapId)
+    await loadNotesForMap(mapId)
+  }
+
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-white text-xl">Loading journey maps...</p>
+      </div>
+    )
+  }
+
+  const selectedMap = journeyMaps.find(m => m.id === selectedMapId)
 
   return (
     <div className="space-y-6">
       <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-        <h2 className="text-2xl font-bold text-white mb-2">Your Journey Map</h2>
+        <h2 className="text-2xl font-bold text-white mb-2">Your Journey Maps</h2>
         <p className="text-white/80 mb-4">
-          {journeyMap
-            ? "This is your project journey map showing the user experience flow we've designed together."
-            : "No journey map has been created for this project yet. Your LoveOnDev consultant will create one during your discovery session."}
+          {journeyMaps.length > 0
+            ? "Select a journey map below to explore the user experience flows we've designed together."
+            : "No journey maps have been created for this project yet. Your LoveOnDev consultant will create them during your discovery session."}
         </p>
 
-        {journeyMap && (
-          <div className="bg-white/5 backdrop-blur-sm border border-white/20 rounded-lg p-4 mb-4">
-            <h3 className="text-lg font-semibold text-white">{journeyMap.title}</h3>
-            {journeyMap.description && <p className="text-white/70 mt-1">{journeyMap.description}</p>}
+        {journeyMaps.length > 0 && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-white/80 text-sm font-semibold mb-2">Select Journey Map:</label>
+              <select
+                value={selectedMapId || ''}
+                onChange={(e) => handleMapChange(e.target.value)}
+                className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+              >
+                {journeyMaps.map((map) => (
+                  <option key={map.id} value={map.id} className="bg-gray-800">
+                    {map.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedMap && (
+              <div className="bg-white/5 backdrop-blur-sm border border-white/20 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-white">{selectedMap.title}</h3>
+                {selectedMap.description && <p className="text-white/70 mt-1">{selectedMap.description}</p>}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {journeyMap && (
+      {selectedMap && (
         <>
           <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-            <JourneyCanvas initialNotes={formattedNotes} readOnly={true} />
+            <JourneyCanvas initialNotes={notes} readOnly={true} />
           </div>
 
           <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
@@ -115,15 +190,6 @@ export default async function PortalJourneyMapPage({
             </ul>
           </div>
         </>
-      )}
-
-      {!journeyMap && (
-        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 text-center">
-          <p className="text-white/70">
-            Journey mapping helps us understand your users&apos; experience and identify opportunities for improvement.
-            We&apos;ll work on this together during our next session.
-          </p>
-        </div>
       )}
     </div>
   )
