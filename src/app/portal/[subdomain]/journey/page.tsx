@@ -15,20 +15,21 @@ type Note = {
   height: number
 }
 
-type Connector = {
-  fromId: string
-  toId: string
+type JourneyMap = {
+  id: string
+  title: string
+  description: string | null
+  project_id: string
+  created_at: string
 }
 
 export default function PortalJourneyMapPage() {
   const params = useParams()
   const subdomain = params.subdomain as string
   
-  const [project, setProject] = useState<any>(null)
-  const [journeyMaps, setJourneyMaps] = useState<any[]>([])
+  const [journeyMaps, setJourneyMaps] = useState<JourneyMap[]>([])
   const [selectedMapId, setSelectedMapId] = useState<string | null>(null)
   const [notes, setNotes] = useState<Note[]>([])
-  const [connectors, setConnectors] = useState<Connector[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -56,8 +57,6 @@ export default function PortalJourneyMapPage() {
       setLoading(false)
       return
     }
-
-    setProject(projectData)
 
     // Fetch all journey maps for this project
     const { data: maps, error: mapError } = await supabaseBrowser
