@@ -70,8 +70,10 @@ export default function JourneyCanvas({
 
   // Pan handlers
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+    // Only pan with middle mouse button or space+drag
+    if (e.button === 1 || (e.button === 0 && e.altKey)) {
       e.preventDefault()
+      e.stopPropagation()
       setIsPanning(true)
       setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y })
     }
@@ -79,6 +81,7 @@ export default function JourneyCanvas({
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isPanning) {
+      e.preventDefault()
       setPanOffset({
         x: e.clientX - panStart.x,
         y: e.clientY - panStart.y,
@@ -86,7 +89,11 @@ export default function JourneyCanvas({
     }
   }
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (isPanning) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
     setIsPanning(false)
   }
 
@@ -246,7 +253,8 @@ export default function JourneyCanvas({
         className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-300 rounded-lg relative overflow-hidden"
         style={{ 
           minHeight: '600px',
-          cursor: isPanning ? 'grabbing' : 'default'
+          cursor: isPanning ? 'grabbing' : 'grab',
+          userSelect: isPanning ? 'none' : 'auto'
         }}
       >
         <div
@@ -362,7 +370,7 @@ export default function JourneyCanvas({
             <li>• Click the white circle on a connector line to delete it</li>
             <li>• Click the color buttons to change note type</li>
             <li>• Hold Ctrl/Cmd + scroll to zoom in/out</li>
-            <li>• Hold Shift + drag or use middle mouse button to pan</li>
+            <li>• Hold Alt/Option + drag or use middle mouse button to pan</li>
             <li>
               • Colors: <span className="text-blue-600 font-semibold">Blue = Persona</span>,{' '}
               <span className="text-green-600 font-semibold">Green = Touchpoint</span>,{' '}
