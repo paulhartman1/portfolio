@@ -55,7 +55,16 @@ export async function getPortalContext(subdomain: string) {
     .single()
 
   const isAdmin = Boolean(profile?.is_admin)
-  const isClient = user.id === project.client_id
+  
+  // Check if user has access via project_clients junction table
+  const { data: projectClient } = await supabase
+    .from('project_clients')
+    .select('id')
+    .eq('project_id', project.id)
+    .eq('client_id', user.id)
+    .single()
+  
+  const isClient = Boolean(projectClient)
   const hasAccess = isAdmin || isClient
 
   return {

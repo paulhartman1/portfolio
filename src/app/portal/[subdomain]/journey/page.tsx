@@ -59,7 +59,20 @@ export default function PortalJourneyMapPage() {
       .eq('subdomain', subdomain)
       .single()
 
-    if (!projectData || projectData.client_id !== user.id) {
+    if (!projectData) {
+      setLoading(false)
+      return
+    }
+
+    // Check if user has access via project_clients junction table
+    const { data: projectClient } = await supabaseBrowser
+      .from('project_clients')
+      .select('id')
+      .eq('project_id', projectData.id)
+      .eq('client_id', user.id)
+      .single()
+
+    if (!projectClient) {
       setLoading(false)
       return
     }
