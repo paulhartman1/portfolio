@@ -24,19 +24,6 @@ export async function GET(request: NextRequest) {
   }
   
   // Verify user has access to this project
-  const { data: project } = await supabase
-    .from('projects')
-    .select('id, client_id')
-    .eq('id', projectId)
-    .single()
-  
-  if (!project) {
-    return NextResponse.json(
-      { error: 'Project not found' },
-      { status: 404 }
-    )
-  }
-  
   const { data: profile } = await supabase
     .from('profiles')
     .select('is_admin')
@@ -44,19 +31,28 @@ export async function GET(request: NextRequest) {
     .single()
   
   const isAdmin = Boolean(profile?.is_admin)
-  const isClient = user.id === project.client_id
   
-  if (!isAdmin && !isClient) {
-    return NextResponse.json(
-      { error: 'Access denied' },
-      { status: 403 }
-    )
+  if (!isAdmin) {
+    // Check if user is assigned to this project via project_clients
+    const { data: projectClient } = await supabase
+      .from('project_clients')
+      .select('project_id')
+      .eq('project_id', projectId)
+      .eq('client_id', user.id)
+      .single()
+    
+    if (!projectClient) {
+      return NextResponse.json(
+        { error: 'Access denied' },
+        { status: 403 }
+      )
+    }
   }
   
-  // Build query
+  // Build query - include author info from profiles
   let query = supabase
     .from('review_comments')
-    .select('*')
+    .select('*, profiles:client_id (display_name, email)')
     .eq('project_id', projectId)
     .order('created_at', { ascending: false })
   
@@ -107,19 +103,6 @@ export async function POST(request: NextRequest) {
   }
   
   // Verify user has access to this project
-  const { data: project } = await supabase
-    .from('projects')
-    .select('id, client_id')
-    .eq('id', project_id)
-    .single()
-  
-  if (!project) {
-    return NextResponse.json(
-      { error: 'Project not found' },
-      { status: 404 }
-    )
-  }
-  
   const { data: profile } = await supabase
     .from('profiles')
     .select('is_admin')
@@ -127,13 +110,22 @@ export async function POST(request: NextRequest) {
     .single()
   
   const isAdmin = Boolean(profile?.is_admin)
-  const isClient = user.id === project.client_id
   
-  if (!isAdmin && !isClient) {
-    return NextResponse.json(
-      { error: 'Access denied to this project' },
-      { status: 403 }
-    )
+  if (!isAdmin) {
+    // Check if user is assigned to this project via project_clients
+    const { data: projectClient } = await supabase
+      .from('project_clients')
+      .select('project_id')
+      .eq('project_id', project_id)
+      .eq('client_id', user.id)
+      .single()
+    
+    if (!projectClient) {
+      return NextResponse.json(
+        { error: 'Access denied to this project' },
+        { status: 403 }
+      )
+    }
   }
   
   // Create comment
@@ -150,7 +142,7 @@ export async function POST(request: NextRequest) {
       priority,
       status: 'new'
     })
-    .select()
+    .select('*, profiles:client_id (display_name, email)')
     .single()
   
   if (error) {

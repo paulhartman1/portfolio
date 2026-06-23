@@ -61,7 +61,7 @@ export async function POST(request: Request) {
       priority,
       status: 'new',
     })
-    .select('id, url, x_position, y_position, viewport_width, comment_text, priority, status, created_at')
+    .select('id, url, x_position, y_position, viewport_width, comment_text, priority, status, created_at, profiles:client_id (display_name, email)')
     .single()
 
   if (error) {

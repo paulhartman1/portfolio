@@ -12,6 +12,10 @@ type CommentRecord = {
   x_position: number | null
   y_position: number | null
   viewport_width: number | null
+  profiles?: {
+    display_name: string | null
+    email: string | null
+  } | null
 }
 
 type DraftPin = {
@@ -292,6 +296,11 @@ export default function PreviewWorkspace({
         {selectedComment && (
           <section className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-5">
             <h3 className="text-lg font-semibold text-white mb-3">Comment Details</h3>
+            {selectedComment.profiles && (
+              <p className="text-white/70 text-xs mb-2">
+                By: {selectedComment.profiles.display_name || selectedComment.profiles.email}
+              </p>
+            )}
             <p className="text-white/80 text-sm mb-1">Path: {normalizePath(selectedComment.url)}</p>
             <p className="text-white text-sm mb-2">{selectedComment.comment_text}</p>
             <p className="text-white/80 text-sm">
@@ -321,6 +330,11 @@ export default function PreviewWorkspace({
                 onClick={() => setSelectedComment(comment)}
                 className="w-full text-left bg-white/5 border border-white/20 rounded-lg p-3 hover:bg-white/10"
               >
+                {comment.profiles && (
+                  <p className="text-white/60 text-xs mb-1">
+                    {comment.profiles.display_name || comment.profiles.email}
+                  </p>
+                )}
                 <p className="text-white text-sm">{comment.comment_text}</p>
                 <p className="text-white/65 text-xs mt-2">
                   {getPriorityDot(comment.priority)} {comment.priority} · {comment.status}
