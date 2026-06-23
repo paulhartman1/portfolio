@@ -12,7 +12,22 @@ export default async function PreviewPage({
 
   const { data: comments } = await supabase
     .from('review_comments')
-    .select('id, url, comment_text, priority, status, created_at, x_position, y_position, viewport_width')
+    .select(`
+      id,
+      url,
+      comment_text,
+      priority,
+      status,
+      created_at,
+      x_position,
+      y_position,
+      viewport_width,
+      client_id,
+      profiles:client_id (
+        display_name,
+        email
+      )
+    `)
     .eq('project_id', project.id)
     .order('created_at', { ascending: false })
 
