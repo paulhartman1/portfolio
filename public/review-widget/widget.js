@@ -425,10 +425,12 @@
 
     showCommentDetails(comment) {
       const canDelete = comment.client_id === this.userId;
+      const authorName = comment.profiles?.display_name || comment.profiles?.email || 'Unknown';
       
       const modal = this.createModal(`
         <h2>Comment Details</h2>
         <div class="crw-comment-details">
+          <p><strong>Author:</strong> ${authorName}</p>
           <p><strong>Comment:</strong> ${comment.comment_text}</p>
           <p><strong>Priority:</strong> <span class="crw-priority-badge crw-priority-${comment.priority}">${comment.priority}</span></p>
           <p><strong>Status:</strong> ${comment.status}</p>
