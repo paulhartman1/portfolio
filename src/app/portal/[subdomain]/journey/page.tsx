@@ -132,6 +132,9 @@ export default function PortalJourneyMapPage() {
   }
 
   async function handleMapChange(mapId: string) {
+    // Clear current data first to prevent showing wrong data
+    setNotes([])
+    setConnectors([])
     setSelectedMapId(mapId)
     await loadNotesForMap(mapId)
   }
