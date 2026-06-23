@@ -54,6 +54,7 @@ export default function ManageProjectPage() {
 
   const [project, setProject] = useState<Project | null>(null)
   const [clients, setClients] = useState<Client[]>([])
+  const [allClients, setAllClients] = useState<Client[]>([])
   const [selectedClientId, setSelectedClientId] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -61,6 +62,8 @@ export default function ManageProjectPage() {
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('loading')
   const [sendStatus, setSendStatus] = useState<SendStatus>('idle')
   const [notice, setNotice] = useState('')
+  const [showAddClient, setShowAddClient] = useState(false)
+  const [addingClient, setAddingClient] = useState(false)
 
   const selectedClient = useMemo(
     () => clients.find((client) => client.id === selectedClientId) || null,
@@ -127,6 +130,18 @@ export default function ManageProjectPage() {
 
     setClients(assignedClients)
     setSelectedClientId((current) => current || assignedClients[0]?.id || '')
+
+    // Load all clients for the add client dropdown
+    const { data: allClientsData, error: allClientsError } = await supabaseBrowser
+      .from('profiles')
+      .select('id, email, display_name, company')
+      .eq('is_admin', false)
+      .order('display_name')
+
+    if (!allClientsError && allClientsData) {
+      setAllClients(allClientsData)
+    }
+
     setLoadStatus('ready')
   }
 
@@ -188,6 +203,49 @@ export default function ManageProjectPage() {
     setSendStatus('sent')
     setNotice('Message sent.')
     await loadMessages(selectedClientId)
+  }
+
+  async function addClientToProject(clientId: string) {
+    setAddingClient(true)
+
+    const { error } = await supabaseBrowser
+      .from('project_clients')
+      .insert({
+        project_id: projectId,
+        client_id: clientId,
+      })
+
+    if (error) {
+      console.error('Error adding client:', error)
+      alert('Failed to add client to project')
+      setAddingClient(false)
+      return
+    }
+
+    setAddingClient(false)
+    setShowAddClient(false)
+    await loadProject()
+  }
+
+  async function removeClientFromProject(clientId: string) {
+    if (!confirm('Remove this client from the project?')) return
+
+    const { error } = await supabaseBrowser
+      .from('project_clients')
+      .delete()
+      .eq('project_id', projectId)
+      .eq('client_id', clientId)
+
+    if (error) {
+      console.error('Error removing client:', error)
+      alert('Failed to remove client from project')
+      return
+    }
+
+    await loadProject()
+    if (selectedClientId === clientId) {
+      setSelectedClientId('')
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -269,29 +327,68 @@ export default function ManageProjectPage() {
             )}
 
             <div>
-              <p className="text-white/50 uppercase tracking-wide text-xs mb-2">Assigned Clients</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-white/50 uppercase tracking-wide text-xs">Assigned Clients</p>
+                <button
+                  onClick={() => setShowAddClient(!showAddClient)}
+                  className="text-xs text-blue-200 hover:text-blue-100"
+                >
+                  + Add Client
+                </button>
+              </div>
+
+              {showAddClient && (
+                <div className="mb-3 p-3 rounded-lg bg-white/5 border border-white/20">
+                  <p className="text-white/80 text-sm mb-2">Select a client to add:</p>
+                  <select
+                    onChange={(e) => e.target.value && addClientToProject(e.target.value)}
+                    disabled={addingClient}
+                    className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm"
+                  >
+                    <option value="">-- Select Client --</option>
+                    {allClients
+                      .filter((c) => !clients.some((assigned) => assigned.id === c.id))
+                      .map((client) => (
+                        <option key={client.id} value={client.id}>
+                          {client.display_name || client.email}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
+
               {clients.length === 0 ? (
                 <p className="text-white/60">No clients are assigned to this project yet.</p>
               ) : (
                 <div className="space-y-2">
                   {clients.map((client) => (
-                    <button
+                    <div
                       key={client.id}
-                      type="button"
-                      onClick={() => setSelectedClientId(client.id)}
-                      className={`w-full text-left rounded-lg border px-3 py-2 transition-colors ${
+                      className={`rounded-lg border px-3 py-2 ${
                         selectedClientId === client.id
-                          ? 'bg-purple-500/25 border-purple-300/60 text-white'
-                          : 'bg-white/5 border-white/20 text-white/80 hover:bg-white/10'
+                          ? 'bg-purple-500/25 border-purple-300/60'
+                          : 'bg-white/5 border-white/20'
                       }`}
                     >
-                      <span className="block font-semibold">
-                        {client.display_name || client.email}
-                      </span>
-                      {client.company && (
-                        <span className="block text-xs text-white/60">{client.company}</span>
-                      )}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedClientId(client.id)}
+                        className="w-full text-left"
+                      >
+                        <span className="block font-semibold text-white">
+                          {client.display_name || client.email}
+                        </span>
+                        {client.company && (
+                          <span className="block text-xs text-white/60">{client.company}</span>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => removeClientFromProject(client.id)}
+                        className="mt-1 text-xs text-red-300 hover:text-red-200"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}

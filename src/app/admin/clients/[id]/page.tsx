@@ -91,14 +91,30 @@ export default function ClientDetailPage() {
 
     setClient(profileData)
 
-    // Load client's projects
-    const { data: projectsData } = await supabaseBrowser
-      .from('projects')
-      .select('*')
+    // Load client's projects via project_clients junction table
+    const { data: projectClientsData } = await supabaseBrowser
+      .from('project_clients')
+      .select(`
+        projects (
+          id,
+          name,
+          subdomain,
+          status,
+          client_id,
+          created_at
+        )
+      `)
       .eq('client_id', clientId)
       .order('created_at', { ascending: false })
 
-    setProjects(projectsData || [])
+    const clientProjects = projectClientsData
+      ?.map((row) => {
+        const projects = (row as { projects: Project | Project[] }).projects
+        return Array.isArray(projects) ? projects[0] : projects
+      })
+      .filter((p): p is Project => p !== null) || []
+
+    setProjects(clientProjects)
 
     // Load client's comments
     const { data: commentsData } = await supabaseBrowser
@@ -144,9 +160,11 @@ export default function ClientDetailPage() {
 
     setAssigningProject(true)
     const { error } = await supabaseBrowser
-      .from('projects')
-      .update({ client_id: clientId })
-      .eq('id', selectedProjectId)
+      .from('project_clients')
+      .insert({
+        project_id: selectedProjectId,
+        client_id: clientId,
+      })
 
     if (error) {
       console.error('Error assigning project:', error)
@@ -162,9 +180,10 @@ export default function ClientDetailPage() {
     if (!confirm('Remove this project from this client?')) return
 
     const { error } = await supabaseBrowser
-      .from('projects')
-      .update({ client_id: null })
-      .eq('id', projectId)
+      .from('project_clients')
+      .delete()
+      .eq('project_id', projectId)
+      .eq('client_id', clientId)
 
     if (error) {
       console.error('Error unassigning project:', error)
@@ -277,7 +296,8 @@ export default function ClientDetailPage() {
   }
 
   // Filter out projects already assigned to this client
-  const availableProjects = allProjects.filter(p => p.client_id !== clientId)
+  const assignedProjectIds = new Set(projects.map(p => p.id))
+  const availableProjects = allProjects.filter(p => !assignedProjectIds.has(p.id))
 
   return (
     <div>
