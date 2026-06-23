@@ -38,7 +38,57 @@ export default function JourneyCanvas({
   const [notes, setNotes] = useState<Note[]>(initialNotes)
   const [connectors, setConnectors] = useState<Connector[]>(initialConnectors)
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null)
+  const [zoom, setZoom] = useState(1)
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
+  const [isPanning, setIsPanning] = useState(false)
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 })
   const canvasRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  // Zoom handlers
+  const handleWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault()
+      const delta = e.deltaY * -0.01
+      const newZoom = Math.min(Math.max(0.1, zoom + delta), 3)
+      setZoom(newZoom)
+    }
+  }
+
+  const handleZoomIn = () => {
+    setZoom((prev) => Math.min(prev + 0.1, 3))
+  }
+
+  const handleZoomOut = () => {
+    setZoom((prev) => Math.max(prev - 0.1, 0.1))
+  }
+
+  const handleResetZoom = () => {
+    setZoom(1)
+    setPanOffset({ x: 0, y: 0 })
+  }
+
+  // Pan handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+      e.preventDefault()
+      setIsPanning(true)
+      setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y })
+    }
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isPanning) {
+      setPanOffset({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y,
+      })
+    }
+  }
+
+  const handleMouseUp = () => {
+    setIsPanning(false)
+  }
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -53,11 +103,11 @@ export default function JourneyCanvas({
     const offsetX = parseFloat(e.dataTransfer.getData('offsetX') || '0')
     const offsetY = parseFloat(e.dataTransfer.getData('offsetY') || '0')
 
-    if (!canvasRef.current) return
+    if (!contentRef.current) return
 
-    const canvasRect = canvasRef.current.getBoundingClientRect()
-    const x = e.clientX - canvasRect.left - offsetX
-    const y = e.clientY - canvasRect.top - offsetY
+    const contentRect = contentRef.current.getBoundingClientRect()
+    const x = (e.clientX - contentRect.left - panOffset.x) / zoom - offsetX
+    const y = (e.clientY - contentRect.top - panOffset.y) / zoom - offsetY
 
     const updatedNotes = notes.map((note) =>
       note.id === noteId ? { ...note, x: Math.max(0, x), y: Math.max(0, y) } : note
@@ -139,6 +189,34 @@ export default function JourneyCanvas({
 
   return (
     <div className="relative w-full h-full">
+      {/* Zoom controls */}
+      <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
+        <button
+          onClick={handleZoomIn}
+          className="w-10 h-10 bg-white border-2 border-gray-300 rounded-lg shadow-md hover:bg-gray-50 font-bold text-lg flex items-center justify-center"
+          title="Zoom in (Ctrl+scroll)"
+        >
+          +
+        </button>
+        <button
+          onClick={handleZoomOut}
+          className="w-10 h-10 bg-white border-2 border-gray-300 rounded-lg shadow-md hover:bg-gray-50 font-bold text-lg flex items-center justify-center"
+          title="Zoom out (Ctrl+scroll)"
+        >
+          −
+        </button>
+        <button
+          onClick={handleResetZoom}
+          className="w-10 h-10 bg-white border-2 border-gray-300 rounded-lg shadow-md hover:bg-gray-50 font-bold text-xs flex items-center justify-center"
+          title="Reset zoom and pan"
+        >
+          1:1
+        </button>
+        <div className="text-xs text-center bg-white border-2 border-gray-300 rounded-lg px-2 py-1 font-semibold">
+          {Math.round(zoom * 100)}%
+        </div>
+      </div>
+
       {!readOnly && (
         <div className="absolute top-4 left-4 z-10 flex gap-2">
           <button
@@ -160,16 +238,34 @@ export default function JourneyCanvas({
 
       <div
         ref={canvasRef}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-        className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-300 rounded-lg relative overflow-auto"
-        style={{ minHeight: '600px' }}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-300 rounded-lg relative overflow-hidden"
+        style={{ 
+          minHeight: '600px',
+          cursor: isPanning ? 'grabbing' : 'default'
+        }}
       >
-        {/* SVG for connectors */}
-        <svg
-          className="absolute top-0 left-0 w-full h-full pointer-events-none"
-          style={{ zIndex: 0 }}
+        <div
+          ref={contentRef}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          className="relative w-full h-full"
+          style={{
+            transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
+            transformOrigin: '0 0',
+            minWidth: '2000px',
+            minHeight: '2000px',
+          }}
         >
+          {/* SVG for connectors */}
+          <svg
+            className="absolute top-0 left-0 pointer-events-none"
+            style={{ zIndex: 0, width: '2000px', height: '2000px' }}
+          >
           {connectors.map((conn, idx) => {
             const path = getConnectorPath(conn.fromId, conn.toId)
             if (!path) return null
@@ -211,15 +307,15 @@ export default function JourneyCanvas({
               <polygon points="0 0, 10 3, 0 6" fill="#666" />
             </marker>
           </defs>
-        </svg>
+          </svg>
 
-        {/* Notes */}
-        {notes.map((note) => (
-          <div
-            key={note.id}
-            className="relative"
-            style={{ zIndex: 1 }}
-          >
+          {/* Notes */}
+          {notes.map((note) => (
+            <div
+              key={note.id}
+              className="relative"
+              style={{ zIndex: 1 }}
+            >
             <StickyNote
               id={note.id}
               content={note.content}
@@ -250,8 +346,9 @@ export default function JourneyCanvas({
                 →
               </button>
             )}
-          </div>
-        ))}
+            </div>
+          ))}
+        </div>
       </div>
 
       {!readOnly && (
@@ -264,6 +361,8 @@ export default function JourneyCanvas({
             <li>• Click → button on a note to start/complete a connection</li>
             <li>• Click the white circle on a connector line to delete it</li>
             <li>• Click the color buttons to change note type</li>
+            <li>• Hold Ctrl/Cmd + scroll to zoom in/out</li>
+            <li>• Hold Shift + drag or use middle mouse button to pan</li>
             <li>
               • Colors: <span className="text-blue-600 font-semibold">Blue = Persona</span>,{' '}
               <span className="text-green-600 font-semibold">Green = Touchpoint</span>,{' '}
