@@ -97,7 +97,7 @@ export default function PortalJourneyMapPage() {
 
     if (notesError) {
       console.error('Error fetching notes:', notesError)
-      return
+      return null
     }
 
     const formattedNotes: Note[] = (fetchedNotes || []).map((note) => ({
@@ -110,8 +110,6 @@ export default function PortalJourneyMapPage() {
       height: parseFloat(note.height),
     }))
 
-    setNotes(formattedNotes)
-
     // Load connectors
     const { data: fetchedConnectors, error: connectorsError } = await supabaseBrowser
       .from('journey_map_connectors')
@@ -120,7 +118,7 @@ export default function PortalJourneyMapPage() {
 
     if (connectorsError) {
       console.error('Error fetching connectors:', connectorsError)
-      return
+      return null
     }
 
     const formattedConnectors: Connector[] = (fetchedConnectors || []).map((conn) => ({
@@ -128,15 +126,18 @@ export default function PortalJourneyMapPage() {
       toId: conn.to_note_id,
     }))
 
+    // Update state with both notes and connectors together
+    setNotes(formattedNotes)
     setConnectors(formattedConnectors)
+    return formattedNotes
   }
 
   async function handleMapChange(mapId: string) {
-    // Clear current data first to prevent showing wrong data
-    setNotes([])
-    setConnectors([])
-    setSelectedMapId(mapId)
-    await loadNotesForMap(mapId)
+    // Load new data first, then update the selected map
+    const newNotes = await loadNotesForMap(mapId)
+    if (newNotes !== null) {
+      setSelectedMapId(mapId)
+    }
   }
 
   if (loading) {
