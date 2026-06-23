@@ -15,6 +15,11 @@ type Note = {
   height: number
 }
 
+type Connector = {
+  fromId: string
+  toId: string
+}
+
 type JourneyMap = {
   id: string
   title: string
@@ -30,6 +35,7 @@ export default function PortalJourneyMapPage() {
   const [journeyMaps, setJourneyMaps] = useState<JourneyMap[]>([])
   const [selectedMapId, setSelectedMapId] = useState<string | null>(null)
   const [notes, setNotes] = useState<Note[]>([])
+  const [connectors, setConnectors] = useState<Connector[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -82,6 +88,7 @@ export default function PortalJourneyMapPage() {
   }
 
   async function loadNotesForMap(mapId: string) {
+    // Load notes
     const { data: fetchedNotes, error: notesError } = await supabaseBrowser
       .from('journey_map_notes')
       .select('*')
@@ -104,6 +111,24 @@ export default function PortalJourneyMapPage() {
     }))
 
     setNotes(formattedNotes)
+
+    // Load connectors
+    const { data: fetchedConnectors, error: connectorsError } = await supabaseBrowser
+      .from('journey_map_connectors')
+      .select('from_note_id, to_note_id')
+      .eq('map_id', mapId)
+
+    if (connectorsError) {
+      console.error('Error fetching connectors:', connectorsError)
+      return
+    }
+
+    const formattedConnectors: Connector[] = (fetchedConnectors || []).map((conn) => ({
+      fromId: conn.from_note_id,
+      toId: conn.to_note_id,
+    }))
+
+    setConnectors(formattedConnectors)
   }
 
   async function handleMapChange(mapId: string) {
@@ -161,7 +186,12 @@ export default function PortalJourneyMapPage() {
       {selectedMap && (
         <>
           <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-            <JourneyCanvas initialNotes={notes} readOnly={true} />
+            <JourneyCanvas
+              key={selectedMapId}
+              initialNotes={notes}
+              initialConnectors={connectors}
+              readOnly={true}
+            />
           </div>
 
           <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
