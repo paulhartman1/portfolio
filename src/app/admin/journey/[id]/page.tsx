@@ -22,6 +22,12 @@ type Connector = {
   toId: string
 }
 
+type Project = {
+  id: string
+  name: string
+  subdomain: string
+}
+
 type JourneyMap = {
   id: string
   project_id: string
@@ -43,14 +49,37 @@ export default function EditJourneyMapPage() {
   const [journeyMap, setJourneyMap] = useState<JourneyMap | null>(null)
   const [notes, setNotes] = useState<Note[]>([])
   const [connectors, setConnectors] = useState<Connector[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [editingMetadata, setEditingMetadata] = useState(false)
+  const [metadataForm, setMetadataForm] = useState({
+    title: '',
+    slug: '',
+    description: '',
+    is_public: false,
+    project_id: '',
+  })
 
   useEffect(() => {
     loadJourneyMap()
+    loadProjects()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapId])
+
+  async function loadProjects() {
+    const { data, error } = await supabaseBrowser
+      .from('projects')
+      .select('id, name, subdomain')
+      .order('name')
+
+    if (error) {
+      console.error('Error loading projects:', error)
+    } else {
+      setProjects(data || [])
+    }
+  }
 
   async function loadJourneyMap() {
     setLoading(true)
@@ -76,6 +105,13 @@ export default function EditJourneyMapPage() {
     }
 
     setJourneyMap(mapData)
+    setMetadataForm({
+      title: mapData.title,
+      slug: mapData.slug,
+      description: mapData.description || '',
+      is_public: mapData.is_public,
+      project_id: mapData.project_id,
+    })
 
     // Load notes
     const { data: notesData, error: notesError } = await supabaseBrowser
@@ -129,6 +165,38 @@ export default function EditJourneyMapPage() {
   function handleConnectorsChange(updatedConnectors: Connector[]) {
     setConnectors(updatedConnectors)
     setHasUnsavedChanges(true)
+  }
+
+  async function saveMetadata() {
+    if (!metadataForm.title.trim() || !metadataForm.slug.trim() || !metadataForm.project_id) {
+      alert('Title, slug, and project are required')
+      return
+    }
+
+    setSaving(true)
+
+    const { error } = await supabaseBrowser
+      .from('journey_maps')
+      .update({
+        title: metadataForm.title.trim(),
+        slug: metadataForm.slug.trim(),
+        description: metadataForm.description.trim() || null,
+        is_public: metadataForm.is_public,
+        project_id: metadataForm.project_id,
+      })
+      .eq('id', mapId)
+
+    if (error) {
+      console.error('Error updating journey map:', error)
+      alert('Failed to update journey map metadata')
+      setSaving(false)
+      return
+    }
+
+    setSaving(false)
+    setEditingMetadata(false)
+    alert('Metadata updated successfully!')
+    await loadJourneyMap()
   }
 
   async function saveChanges() {
@@ -221,7 +289,16 @@ export default function EditJourneyMapPage() {
         </button>
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">{journeyMap.title}</h1>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-4xl font-bold text-white">{journeyMap.title}</h1>
+              <button
+                onClick={() => setEditingMetadata(true)}
+                className="text-white/60 hover:text-white text-sm"
+                title="Edit journey map details"
+              >
+                ✏️ Edit
+              </button>
+            </div>
             <div className="text-white/80 space-y-1">
               <p>{journeyMap.projects?.name}</p>
               <p className="text-sm">
@@ -248,6 +325,105 @@ export default function EditJourneyMapPage() {
           </p>
         )}
       </div>
+
+      {/* Metadata Edit Modal */}
+      {editingMetadata && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-white/20 rounded-2xl p-6 max-w-2xl w-full">
+            <h2 className="text-2xl font-bold text-white mb-6">Edit Journey Map Details</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-white/80 text-sm mb-2">Title *</label>
+                <input
+                  type="text"
+                  value={metadataForm.title}
+                  onChange={(e) => setMetadataForm({ ...metadataForm, title: e.target.value })}
+                  className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-purple-500"
+                  placeholder="Journey Map Title"
+                />
+              </div>
+
+              <div>
+                <label className="block text-white/80 text-sm mb-2">Slug * (URL-friendly)</label>
+                <input
+                  type="text"
+                  value={metadataForm.slug}
+                  onChange={(e) => setMetadataForm({ ...metadataForm, slug: e.target.value })}
+                  className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-purple-500"
+                  placeholder="journey-map-slug"
+                />
+              </div>
+
+              <div>
+                <label className="block text-white/80 text-sm mb-2">Description</label>
+                <textarea
+                  value={metadataForm.description}
+                  onChange={(e) => setMetadataForm({ ...metadataForm, description: e.target.value })}
+                  className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-purple-500"
+                  rows={3}
+                  placeholder="Brief description of this journey map"
+                />
+              </div>
+
+              <div>
+                <label className="block text-white/80 text-sm mb-2">Project *</label>
+                <select
+                  value={metadataForm.project_id}
+                  onChange={(e) => setMetadataForm({ ...metadataForm, project_id: e.target.value })}
+                  className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                >
+                  <option value="">Select a project</option>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="is_public"
+                  checked={metadataForm.is_public}
+                  onChange={(e) => setMetadataForm({ ...metadataForm, is_public: e.target.checked })}
+                  className="w-4 h-4"
+                />
+                <label htmlFor="is_public" className="text-white/80 text-sm">
+                  Make this journey map publicly accessible
+                </label>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={saveMetadata}
+                disabled={saving}
+                className="flex-1 px-6 py-3 rounded-lg bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+              >
+                {saving ? 'Saving...' : 'Save Metadata'}
+              </button>
+              <button
+                onClick={() => {
+                  setEditingMetadata(false)
+                  setMetadataForm({
+                    title: journeyMap.title,
+                    slug: journeyMap.slug,
+                    description: journeyMap.description || '',
+                    is_public: journeyMap.is_public,
+                    project_id: journeyMap.project_id,
+                  })
+                }}
+                disabled={saving}
+                className="px-6 py-3 rounded-lg bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/20 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Canvas */}
       <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
