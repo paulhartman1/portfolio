@@ -1,7 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { supabaseBrowser } from '@/utils/supabase/client'
+
+type Project = {
+  id: string
+  name: string
+}
 
 export default function AddClientPage() {
   const router = useRouter()
@@ -12,15 +18,40 @@ export default function AddClientPage() {
     last_name: '',
     company: '',
     phone: '',
-    pronouns: ''
+    pronouns: '',
+    is_admin: false
   })
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    loadProjects()
+  }, [])
+
+  async function loadProjects() {
+    const { data } = await supabaseBrowser
+      .from('projects')
+      .select('id, name')
+      .order('name')
+    
+    if (data) {
+      setProjects(data)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setStatus('sending')
     setMessage('')
+
+    // Validation: clients must have at least one project, admins don't need projects
+    if (!formData.is_admin && selectedProjects.length === 0) {
+      setStatus('error')
+      setMessage('Clients must be assigned to at least one project')
+      return
+    }
 
     try {
       const res = await fetch('/api/admin/clients', {
@@ -34,6 +65,8 @@ export default function AddClientPage() {
           company: formData.company,
           phone: formData.phone,
           pronouns: formData.pronouns,
+          is_admin: formData.is_admin,
+          project_ids: selectedProjects,
         }),
       })
 
@@ -41,7 +74,9 @@ export default function AddClientPage() {
       if (!res.ok) throw new Error(result.error || 'Failed to create client')
 
       setStatus('success')
-      setMessage(`Client account created for ${formData.email}. They can sign in with the password you set and use password reset from login.`)
+      const roleText = formData.is_admin ? 'Admin' : 'Client'
+      const projectText = selectedProjects.length > 0 ? ` and assigned to ${selectedProjects.length} project(s)` : ''
+      setMessage(`${roleText} account created for ${formData.email}${projectText}. They can sign in with the password you set.`)
       
       setTimeout(() => {
         router.push('/admin')
@@ -55,10 +90,21 @@ export default function AddClientPage() {
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const target = e.target
+    const value = target.type === 'checkbox' ? (target as HTMLInputElement).checked : target.value
+    
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [target.name]: value
     })
+  }
+
+  const toggleProject = (projectId: string) => {
+    setSelectedProjects(prev => 
+      prev.includes(projectId)
+        ? prev.filter(id => id !== projectId)
+        : [...prev, projectId]
+    )
   }
 
   return (
@@ -161,6 +207,53 @@ export default function AddClientPage() {
               <option value="other" className="bg-gray-900 text-white">Other</option>
             </select>
           </div>
+
+          <div className="pt-4 border-t border-white/20">
+            <div className="flex items-center gap-3 mb-4">
+              <input
+                type="checkbox"
+                name="is_admin"
+                id="is_admin"
+                checked={formData.is_admin}
+                onChange={handleChange}
+                className="w-5 h-5 rounded bg-white/5 border border-white/20"
+              />
+              <label htmlFor="is_admin" className="text-white font-semibold">
+                Admin Account (full access to all projects)
+              </label>
+            </div>
+          </div>
+
+          {!formData.is_admin && (
+            <div>
+              <label className="block text-white mb-2 font-semibold">
+                Assign to Projects *
+              </label>
+              <p className="text-white/60 text-sm mb-3">
+                Select one or more projects this client will have access to.
+              </p>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {projects.length === 0 ? (
+                  <p className="text-white/40 text-sm">No projects available</p>
+                ) : (
+                  projects.map(project => (
+                    <div key={project.id} className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id={`project-${project.id}`}
+                        checked={selectedProjects.includes(project.id)}
+                        onChange={() => toggleProject(project.id)}
+                        className="w-4 h-4 rounded bg-white/5 border border-white/20"
+                      />
+                      <label htmlFor={`project-${project.id}`} className="text-white">
+                        {project.name}
+                      </label>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
 
           {status === 'success' && (
             <div className="p-4 rounded-lg bg-green-500/20 border border-green-500/50 text-green-200">

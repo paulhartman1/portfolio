@@ -29,6 +29,8 @@ export async function POST(req: NextRequest) {
     const company = body.company?.toString()?.trim() ?? ''
     const phone = body.phone?.toString()?.trim() ?? ''
     const pronouns = body.pronouns?.toString()?.trim() ?? ''
+    const isAdmin = Boolean(body.is_admin)
+    const projectIds = (body.project_ids as string[]) ?? []
     const displayName = `${firstName} ${lastName}`.trim() || email
 
     if (!email || !password) {
@@ -36,6 +38,9 @@ export async function POST(req: NextRequest) {
     }
     if (password.length < 8) {
       return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
+    }
+    if (!isAdmin && projectIds.length === 0) {
+      return NextResponse.json({ error: 'Clients must be assigned to at least one project' }, { status: 400 })
     }
 
     const serviceRole = createServiceRoleClient()
@@ -68,11 +73,28 @@ export async function POST(req: NextRequest) {
         company,
         phone,
         pronouns,
+        is_admin: isAdmin,
       })
       .eq('id', createdUser.user.id)
 
     if (profileError) {
       return NextResponse.json({ error: profileError.message }, { status: 400 })
+    }
+
+    // Assign client to projects via project_clients junction table
+    if (projectIds.length > 0) {
+      const projectAssignments = projectIds.map(projectId => ({
+        project_id: projectId,
+        client_id: createdUser.user.id,
+      }))
+
+      const { error: projectError } = await serviceRole
+        .from('project_clients')
+        .insert(projectAssignments)
+
+      if (projectError) {
+        return NextResponse.json({ error: projectError.message }, { status: 400 })
+      }
     }
 
     return NextResponse.json({ success: true })
