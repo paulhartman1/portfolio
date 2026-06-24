@@ -1,10 +1,13 @@
 // page.tsx
 'use client'
+import { useState } from 'react'
 import Image from 'next/image'
 import About from './components/about'
 import Projects from './components/projects'
 
 export default function Home() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-100" >
 
@@ -21,6 +24,8 @@ export default function Home() {
                 height={60}
               />
             </div>
+            
+            {/* Desktop Menu */}
             <div className="hidden md:flex space-x-8">
               <a href="#about" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">About</a>
               <a href="#projects" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Projects</a>
@@ -28,7 +33,68 @@ export default function Home() {
               <a href="https://tidycal.com/loveondev" target='_blank' className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Contact</a>
               <a href="/auth/login" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Login</a>
             </div>
+
+            {/* Mobile Hamburger Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden text-slate-200 hover:text-purple-400 transition-colors p-2"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
           </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden py-4 border-t border-slate-700/50">
+              <div className="flex flex-col space-y-4">
+                <a 
+                  href="#about" 
+                  className="text-slate-200 hover:text-purple-400 transition-colors font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  About
+                </a>
+                <a 
+                  href="#projects" 
+                  className="text-slate-200 hover:text-purple-400 transition-colors font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Projects
+                </a>
+                <a 
+                  href="#services" 
+                  className="text-slate-200 hover:text-purple-400 transition-colors font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Services
+                </a>
+                <a 
+                  href="https://tidycal.com/loveondev" 
+                  target='_blank' 
+                  className="text-slate-200 hover:text-purple-400 transition-colors font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Contact
+                </a>
+                <a 
+                  href="/auth/login" 
+                  className="text-slate-200 hover:text-purple-400 transition-colors font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Login
+                </a>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
