@@ -22,11 +22,11 @@ export default async function PortalLayout({
     )
   }
 
-  // Get unread message count
+  // Get unread message count for this project
   const { count: unreadCount } = await supabase
     .from('client_messages')
     .select('*', { count: 'exact', head: true })
-    .eq('client_id', user.id)
+    .eq('project_id', project.id)
     .eq('is_read', false)
     .neq('sender_id', user.id)
 

@@ -6,7 +6,7 @@ import { supabaseBrowser } from '@/utils/supabase/client'
 
 type Message = {
   id: string
-  client_id: string
+  project_id: string
   sender_id: string
   message: string
   is_read: boolean
@@ -27,6 +27,7 @@ export default function ClientMessagesPage() {
   const [newMessage, setNewMessage] = useState('')
   const [sendingMessage, setSendingMessage] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [projectId, setProjectId] = useState<string | null>(null)
 
   useEffect(() => {
     loadMessages()
@@ -43,7 +44,20 @@ export default function ClientMessagesPage() {
     }
     setUserId(userData.user.id)
 
-    // Load messages for this user
+    // Get project by subdomain
+    const { data: projectData } = await supabaseBrowser
+      .from('projects')
+      .select('id')
+      .eq('subdomain', subdomain)
+      .single()
+
+    if (!projectData) {
+      setLoading(false)
+      return
+    }
+    setProjectId(projectData.id)
+
+    // Load messages for this project (all clients can see all messages)
     const { data: messagesData, error } = await supabaseBrowser
       .from('client_messages')
       .select(`
@@ -54,7 +68,7 @@ export default function ClientMessagesPage() {
           is_admin
         )
       `)
-      .eq('client_id', userData.user.id)
+      .eq('project_id', projectData.id)
       .order('created_at', { ascending: true })
 
     if (error) {
@@ -67,13 +81,13 @@ export default function ClientMessagesPage() {
   }
 
   async function sendMessage() {
-    if (!newMessage.trim() || !userId) return
+    if (!newMessage.trim() || !userId || !projectId) return
 
     setSendingMessage(true)
     const { error } = await supabaseBrowser
       .from('client_messages')
       .insert({
-        client_id: userId,
+        project_id: projectId,
         sender_id: userId,
         message: newMessage.trim(),
       })

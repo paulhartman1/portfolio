@@ -233,8 +233,8 @@ CREATE POLICY "Clients can upload storage objects for assigned projects"
     )
   );
 
--- Note: client_messages table doesn't have project_id, it's direct client-admin messaging
--- so it doesn't need to be updated to use the project_clients junction table
+-- Note: client_messages was originally direct client-admin messaging.
+-- It was later migrated to project-based messaging in 20260624_project_based_messages.sql
 
 -- Update journey_maps policies to use junction table (if table exists)
 DO $$

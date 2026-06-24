@@ -26,6 +26,16 @@ Requires a `.env.local` with Supabase credentials.
 - `src/utils/supabase/` — browser, server, and service-role clients
 - Admin and client portal pages use server components with Supabase RLS
 
+### Messaging System
+
+**IMPORTANT: Messages are PROJECT-based, not client-based.**
+
+- `client_messages` table has `project_id` (required)
+- All clients associated with a project via `project_clients` can see all messages for that project
+- Messages are NOT private between individual clients and admin
+- This is a multi-tenant project communication system, not 1:1 DMs
+- See `20260624_project_based_messages.sql` migration for RLS policies
+
 ## Gotchas
 
 - `about.tsx` uses an IntersectionObserver that adds/removes a body class for visual blending

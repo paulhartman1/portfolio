@@ -29,7 +29,7 @@ type ProjectClientRow = {
 
 type Message = {
   id: string
-  client_id: string
+  project_id: string
   sender_id: string
   message: string
   is_read: boolean
@@ -76,12 +76,10 @@ export default function ManageProjectPage() {
   }, [projectId])
 
   useEffect(() => {
-    if (selectedClientId) {
-      loadMessages(selectedClientId)
-    } else {
-      setMessages([])
+    if (projectId) {
+      loadMessages()
     }
-  }, [selectedClientId])
+  }, [projectId])
 
   async function loadProject() {
     setLoadStatus('loading')
@@ -145,12 +143,12 @@ export default function ManageProjectPage() {
     setLoadStatus('ready')
   }
 
-  async function loadMessages(clientId: string) {
+  async function loadMessages() {
     const { data, error } = await supabaseBrowser
       .from('client_messages')
       .select(`
         id,
-        client_id,
+        project_id,
         sender_id,
         message,
         is_read,
@@ -161,7 +159,7 @@ export default function ManageProjectPage() {
           is_admin
         )
       `)
-      .eq('client_id', clientId)
+      .eq('project_id', projectId)
       .order('created_at', { ascending: true })
 
     if (error) {
@@ -179,7 +177,7 @@ export default function ManageProjectPage() {
   }
 
   async function sendMessage() {
-    if (!messageText.trim() || !currentUserId || !selectedClientId) return
+    if (!messageText.trim() || !currentUserId) return
 
     setSendStatus('sending')
     setNotice('')
@@ -187,7 +185,7 @@ export default function ManageProjectPage() {
     const { error } = await supabaseBrowser
       .from('client_messages')
       .insert({
-        client_id: selectedClientId,
+        project_id: projectId,
         sender_id: currentUserId,
         message: messageText.trim(),
       })
@@ -202,7 +200,7 @@ export default function ManageProjectPage() {
     setMessageText('')
     setSendStatus('sent')
     setNotice('Message sent.')
-    await loadMessages(selectedClientId)
+    await loadMessages()
   }
 
   async function addClientToProject(clientId: string) {

@@ -1,4 +1,7 @@
--- Client messaging system for direct admin-client communication
+-- Client messaging system
+-- NOTE: This was originally designed for direct admin-client communication,
+-- but was migrated to project-based messaging in 20260624_project_based_messages.sql
+-- Messages are now scoped to projects, not individual clients.
 
 CREATE TABLE IF NOT EXISTS client_messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
