@@ -180,7 +180,19 @@ function WelcomeContent() {
     };
   }, [searchParams]);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
+    // Mark that user has seen the welcome page
+    const supabase = supabaseBrowser;
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session?.user) {
+      await supabase
+        .from('profiles')
+        .update({ has_seen_welcome: true })
+        .eq('id', session.user.id);
+    }
+    
+    // Redirect to appropriate dashboard
     if (userProfile?.is_admin) {
       router.push('/admin');
     } else if (projects.length === 1) {

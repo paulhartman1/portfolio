@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
   console.log('[Auth Callback] Fetching profile for user:', user.id)
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('is_admin')
+    .select('is_admin, has_seen_welcome')
     .eq('id', user.id)
     .single()
   
@@ -62,13 +62,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL(safeNext, req.url))
   }
 
-  // Redirect based on role
-  const redirectUrl = profile?.is_admin ? '/admin' : '/dashboard'
-  console.log('[Auth Callback] Redirecting to:', redirectUrl)
-  
-  if (profile?.is_admin) {
-    return NextResponse.redirect(new URL('/admin', req.url))
+  // If user hasn't seen welcome page yet, show it
+  if (!profile?.has_seen_welcome) {
+    console.log('[Auth Callback] First time user, redirecting to welcome')
+    return NextResponse.redirect(new URL('/auth/welcome', req.url))
   }
 
-  return NextResponse.redirect(new URL('/dashboard', req.url))
+  // Redirect based on role for returning users
+  const redirectUrl = profile?.is_admin ? '/admin' : '/client'
+  console.log('[Auth Callback] Returning user, redirecting to:', redirectUrl)
+  
+  return NextResponse.redirect(new URL(redirectUrl, req.url))
 }
