@@ -6,12 +6,14 @@ export async function GET(req: NextRequest) {
   console.log('[Auth Callback] Request URL:', req.url)
   const { searchParams } = new URL(req.url)
   const code = searchParams.get('code')
+  const tokenHash = searchParams.get('token_hash')
+  const type = searchParams.get('type')
   const requestedNext = searchParams.get('next')
   const safeNext = requestedNext?.startsWith('/') ? requestedNext : null
-  console.log('[Auth Callback] Code:', code ? 'present' : 'missing')
+  console.log('[Auth Callback] Code:', code ? 'present' : 'missing', 'TokenHash:', tokenHash ? 'present' : 'missing', 'Type:', type)
 
-  if (!code) {
-    console.error('[Auth Callback] No code in URL')
+  if (!code && !tokenHash) {
+    console.error('[Auth Callback] No code or token_hash in URL')
     return NextResponse.redirect(new URL('/auth/login?error=no_code', req.url))
   }
 
@@ -31,13 +33,27 @@ export async function GET(req: NextRequest) {
     }
   )
 
-  console.log('[Auth Callback] Exchanging code for session...')
-  const { error } = await supabase.auth.exchangeCodeForSession(code)
-  if (error) {
-    console.error('[Auth Callback] Exchange failed:', error)
-    return NextResponse.redirect(new URL('/auth/login?error=auth_failed', req.url))
+  // Handle PKCE flow (code) or token hash flow
+  if (code) {
+    console.log('[Auth Callback] Exchanging code for session...')
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    if (error) {
+      console.error('[Auth Callback] Exchange failed:', error)
+      return NextResponse.redirect(new URL('/auth/login?error=auth_failed', req.url))
+    }
+    console.log('[Auth Callback] Session exchange successful')
+  } else if (tokenHash && type) {
+    console.log('[Auth Callback] Verifying token hash...')
+    const { error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: type as 'invite' | 'magiclink' | 'recovery' | 'signup' | 'email_change',
+    })
+    if (error) {
+      console.error('[Auth Callback] Token verification failed:', error)
+      return NextResponse.redirect(new URL('/auth/login?error=auth_failed', req.url))
+    }
+    console.log('[Auth Callback] Token verification successful')
   }
-  console.log('[Auth Callback] Session exchange successful')
 
   // Get user profile to determine redirect
   console.log('[Auth Callback] Getting user...')
