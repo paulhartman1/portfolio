@@ -69,8 +69,29 @@ export async function GET(req: NextRequest) {
   }
 
   // Redirect based on role for returning users
-  const redirectUrl = profile?.is_admin ? '/admin' : '/client'
-  console.log('[Auth Callback] Returning user, redirecting to:', redirectUrl)
-  
-  return NextResponse.redirect(new URL(redirectUrl, req.url))
+  if (profile?.is_admin) {
+    console.log('[Auth Callback] Admin user, redirecting to admin')
+    return NextResponse.redirect(new URL('/admin', req.url))
+  }
+
+  // For non-admin users, find their project subdomain
+  const { data: projectClient } = await supabase
+    .from('project_clients')
+    .select('projects(subdomain)')
+    .eq('client_id', user.id)
+    .limit(1)
+    .single()
+
+  const projectSubdomain = projectClient?.projects && !Array.isArray(projectClient.projects)
+    ? (projectClient.projects as { subdomain: string }).subdomain
+    : null
+
+  if (projectSubdomain) {
+    console.log('[Auth Callback] Client user, redirecting to portal:', projectSubdomain)
+    return NextResponse.redirect(new URL(`/portal/${projectSubdomain}`, req.url))
+  }
+
+  // Fallback to login if no project found
+  console.log('[Auth Callback] No project found, redirecting to login')
+  return NextResponse.redirect(new URL('/auth/login', req.url))
 }

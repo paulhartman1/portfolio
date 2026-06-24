@@ -8,6 +8,7 @@ type Project = {
   id: string;
   name: string;
   description: string | null;
+  subdomain: string | null;
 };
 
 function WelcomeContent() {
@@ -118,7 +119,8 @@ function WelcomeContent() {
               projects (
                 id,
                 name,
-                description
+                description,
+                subdomain
               )
             `)
             .eq('client_id', userId);
@@ -195,12 +197,15 @@ function WelcomeContent() {
     // Redirect to appropriate dashboard
     if (userProfile?.is_admin) {
       router.push('/admin');
-    } else if (projects.length === 1) {
-      // Single project - go directly to it
-      router.push(`/client/projects/${projects[0].id}`);
+    } else if (projects.length === 1 && projects[0].subdomain) {
+      // Single project - go directly to it via subdomain
+      router.push(`/portal/${projects[0].subdomain}`);
+    } else if (projects.length > 0 && projects[0].subdomain) {
+      // Multiple projects - go to first project for now
+      router.push(`/portal/${projects[0].subdomain}`);
     } else {
-      // Multiple projects - go to projects list
-      router.push('/client');
+      // Fallback to login if no projects
+      router.push('/auth/login');
     }
   };
 
@@ -222,7 +227,7 @@ function WelcomeContent() {
             <h1 className="text-2xl font-bold text-white mb-4">Unable to Sign In</h1>
             <p className="text-white/80 mb-6">{errorMessage}</p>
             <a
-              href="/client/login"
+              href="/auth/login"
               className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-pink-500 to-purple-500 px-6 py-3 text-sm font-bold text-white transition hover:scale-105"
             >
               Request New Login Link
@@ -317,7 +322,7 @@ function WelcomeContent() {
             onClick={handleContinue}
             className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-pink-500 to-purple-500 px-8 py-4 text-base font-bold text-white transition hover:scale-105 shadow-lg"
           >
-            {userProfile?.is_admin ? 'Go to Admin Dashboard' : projects.length === 1 ? `Go to ${projects[0].name}` : 'View My Projects'}
+            {userProfile?.is_admin ? 'Go to Admin Dashboard' : projects.length === 1 ? `Go to ${projects[0].name}` : 'Go to My Project'}
           </button>
         </div>
 
