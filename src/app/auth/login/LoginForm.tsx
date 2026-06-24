@@ -17,7 +17,7 @@ function isLoveondevSubdomain(url: string): boolean {
 }
 
 export default function LoginForm() {
-  const [mode, setMode] = useState<'password' | 'magic-link'>('password')
+  const [mode, setMode] = useState<'password' | 'magic-link'>('magic-link')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [magicStatus, setMagicStatus] = useState<'idle'|'sending'|'sent'|'error'>('idle')
@@ -169,17 +169,17 @@ export default function LoginForm() {
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={() => setMode('password')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold ${mode === 'password' ? 'bg-white text-gray-900' : 'bg-white/10 text-white hover:bg-white/20'}`}
-          >
-            Password
-          </button>
-          <button
-            type="button"
             onClick={() => setMode('magic-link')}
             className={`px-4 py-2 rounded-lg text-sm font-semibold ${mode === 'magic-link' ? 'bg-white text-gray-900' : 'bg-white/10 text-white hover:bg-white/20'}`}
           >
             Magic Link
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('password')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold ${mode === 'password' ? 'bg-white text-gray-900' : 'bg-white/10 text-white hover:bg-white/20'}`}
+          >
+            Password
           </button>
         </div>
         <label className="block text-white/80 mb-2">Email</label>
@@ -225,11 +225,15 @@ export default function LoginForm() {
           </form>
         ) : (
           <form onSubmit={sendMagicLink} className="space-y-4">
-            <p className="text-white/70 text-sm">Prefer no password? We&apos;ll send a sign-in link.</p>
+            <div className="bg-purple-500/20 border border-purple-400/50 rounded-lg p-4 mb-4">
+              <p className="text-white/90 text-sm">
+                <strong>🔐 No password needed!</strong> Enter your email and we&apos;ll send you a secure login link.
+              </p>
+            </div>
             <button
               type="submit"
               disabled={magicStatus === 'sending' || magicStatus === 'sent'}
-              className="w-full px-4 py-3 rounded-full bg-white/10 text-white font-semibold hover:bg-white/20"
+              className="w-full px-4 py-3 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50"
             >
               {magicStatus === 'sending' ? 'Sending…' : magicStatus === 'sent' ? 'Check your email' : 'Send magic link'}
             </button>

@@ -62,7 +62,7 @@ export default function ClientMessagesPage() {
       .from('client_messages')
       .select(`
         *,
-        sender:sender_id (
+        sender:profiles!sender_id (
           display_name,
           email,
           is_admin

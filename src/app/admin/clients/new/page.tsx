@@ -13,7 +13,6 @@ export default function AddClientPage() {
   const router = useRouter()
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
     first_name: '',
     last_name: '',
     company: '',
@@ -59,7 +58,6 @@ export default function AddClientPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: formData.email,
-          password: formData.password,
           first_name: formData.first_name,
           last_name: formData.last_name,
           company: formData.company,
@@ -76,7 +74,7 @@ export default function AddClientPage() {
       setStatus('success')
       const roleText = formData.is_admin ? 'Admin' : 'Client'
       const projectText = selectedProjects.length > 0 ? ` and assigned to ${selectedProjects.length} project(s)` : ''
-      setMessage(`${roleText} account created for ${formData.email}${projectText}. They can sign in with the password you set.`)
+      setMessage(`${roleText} invited! An email with a magic login link has been sent to ${formData.email}${projectText}.`)
       
       setTimeout(() => {
         router.push('/admin')
@@ -111,7 +109,7 @@ export default function AddClientPage() {
     <div>
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-white mb-2">Add New Client</h1>
-        <p className="text-white/80">Create a client account with email and password</p>
+        <p className="text-white/80">Invite a client with magic link authentication</p>
       </div>
 
       <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 max-w-2xl">
@@ -129,20 +127,9 @@ export default function AddClientPage() {
             />
           </div>
 
-          <div>
-            <label className="block text-white mb-2">Temporary Password *</label>
-            <input
-              type="password"
-              name="password"
-              required
-              minLength={8}
-              value={formData.password}
-              onChange={handleChange}
-              className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white"
-              placeholder="At least 8 characters"
-            />
-            <p className="text-white/60 text-sm mt-1">
-              Client can reset this from the login page.
+          <div className="bg-purple-500/20 border border-purple-400/50 rounded-lg p-4">
+            <p className="text-white/90 text-sm">
+              <strong>🔐 Magic Link Login:</strong> No password needed. The client will receive an email with a secure login link.
             </p>
           </div>
 
