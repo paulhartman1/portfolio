@@ -14,7 +14,7 @@
       --crw-success: #10b981;
       --crw-high: #ef4444;
       --crw-medium: #f59e0b;
-      --crw-low: #10b981;
+      --crw-low: #a855f7;
       font-family: system-ui, -apple-system, sans-serif;
       z-index: 999999;
     }
@@ -62,6 +62,7 @@
     .crw-marker.crw-priority-high { filter: drop-shadow(0 0 8px var(--crw-high)); }
     .crw-marker.crw-priority-medium { filter: drop-shadow(0 0 8px var(--crw-medium)); }
     .crw-marker.crw-priority-low { filter: drop-shadow(0 0 8px var(--crw-low)); }
+    .crw-marker.crw-status-resolved { filter: drop-shadow(0 0 8px var(--crw-success)) !important; }
     
     .crw-modal-overlay {
       position: fixed;
@@ -156,7 +157,7 @@
     }
     .crw-priority-badge.crw-priority-high { background: #fee2e2; color: var(--crw-high); }
     .crw-priority-badge.crw-priority-medium { background: #fef3c7; color: #d97706; }
-    .crw-priority-badge.crw-priority-low { background: #d1fae5; color: #059669; }
+    .crw-priority-badge.crw-priority-low { background: #f3e8ff; color: #9333ea; }
   `;
 
   // Inject styles
@@ -339,7 +340,9 @@
       if (!comment.x_position || !comment.y_position) return;
       
       const marker = document.createElement('div');
-      marker.className = `crw-marker crw-priority-${comment.priority}`;
+      // Apply priority class and status class for resolved comments
+      const statusClass = comment.status === 'resolved' ? 'crw-status-resolved' : '';
+      marker.className = `crw-marker crw-priority-${comment.priority} ${statusClass}`.trim();
       marker.style.left = `${comment.x_position}px`;
       marker.style.top = `${comment.y_position}px`;
       marker.textContent = '📌';
