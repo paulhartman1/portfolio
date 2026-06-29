@@ -14,8 +14,18 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Love On Dev",
-  description: "Creating better software",
+  title: "Love On Dev | Custom Software for Small Businesses & Nonprofits",
+  description: "Technical consultant specializing in client portals, database design, and practical solutions for mission-driven organizations. Collaborative, inclusive approach to software development.",
+  keywords: ["custom software development", "client portals", "database design", "nonprofit software", "small business technology", "Supabase", "PostgreSQL"],
+  authors: [{ name: "Paul Hartman" }],
+  openGraph: {
+    title: "Love On Dev | Custom Software for Small Businesses & Nonprofits",
+    description: "Technical consultant specializing in client portals, database design, and practical solutions for mission-driven organizations.",
+    url: "https://loveondev.com",
+    siteName: "Love On Dev",
+    locale: "en_US",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

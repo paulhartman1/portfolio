@@ -2,6 +2,7 @@
 'use client'
 import { useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import About from './components/about'
 import Projects from './components/projects'
 
@@ -30,6 +31,7 @@ export default function Home() {
               <a href="#about" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">About</a>
               <a href="#projects" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Projects</a>
               <a href="#services" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Services</a>
+              <Link href="/blog" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Blog</Link>
               <a href="https://tidycal.com/loveondev" target='_blank' className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Contact</a>
               <a href="/auth/login" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Login</a>
             </div>
@@ -77,6 +79,13 @@ export default function Home() {
                 >
                   Services
                 </a>
+                <Link 
+                  href="/blog" 
+                  className="text-slate-200 hover:text-purple-400 transition-colors font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Blog
+                </Link>
                 <a 
                   href="https://tidycal.com/loveondev" 
                   target='_blank' 
