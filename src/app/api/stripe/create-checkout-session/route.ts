@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Stripe Checkout Session
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin;
     console.log('💳 Creating Stripe checkout session...', {
       projectId,
       amount: Math.round(amount * 100),
