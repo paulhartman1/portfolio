@@ -145,6 +145,76 @@ export default function PortalJourneyMapPage() {
     return formattedNotes
   }
 
+  async function handleNotesChange(updatedNotes: Note[]) {
+    if (!selectedMapId) return
+
+    setNotes(updatedNotes)
+
+    // Sync to database - upsert all notes
+    for (const note of updatedNotes) {
+      const { error } = await supabaseBrowser
+        .from('journey_map_notes')
+        .upsert({
+          id: note.id,
+          map_id: selectedMapId,
+          content: note.content,
+          color: note.color,
+          x_position: note.x,
+          y_position: note.y,
+          width: note.width,
+          height: note.height,
+        })
+
+      if (error) {
+        console.error('Error saving note:', error)
+      }
+    }
+
+    // Delete notes that were removed
+    const currentNoteIds = updatedNotes.map(n => n.id)
+    const notesToDelete = notes.filter(n => !currentNoteIds.includes(n.id))
+    
+    for (const note of notesToDelete) {
+      const { error } = await supabaseBrowser
+        .from('journey_map_notes')
+        .delete()
+        .eq('id', note.id)
+
+      if (error) {
+        console.error('Error deleting note:', error)
+      }
+    }
+  }
+
+  async function handleConnectorsChange(updatedConnectors: Connector[]) {
+    if (!selectedMapId) return
+
+    setConnectors(updatedConnectors)
+
+    // Delete all existing connectors for this map
+    await supabaseBrowser
+      .from('journey_map_connectors')
+      .delete()
+      .eq('map_id', selectedMapId)
+
+    // Insert new connectors
+    if (updatedConnectors.length > 0) {
+      const { error } = await supabaseBrowser
+        .from('journey_map_connectors')
+        .insert(
+          updatedConnectors.map(conn => ({
+            map_id: selectedMapId,
+            from_note_id: conn.fromId,
+            to_note_id: conn.toId,
+          }))
+        )
+
+      if (error) {
+        console.error('Error saving connectors:', error)
+      }
+    }
+  }
+
   async function handleMapChange(mapId: string) {
     // Load new data first, then update the selected map
     const newNotes = await loadNotesForMap(mapId)
@@ -203,11 +273,17 @@ export default function PortalJourneyMapPage() {
       {selectedMap && (
         <>
           <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+            <h3 className="text-xl font-semibold text-white mb-4">Journey Map Canvas</h3>
+            <p className="text-white/80 mb-4">
+              You can add, edit, move, and connect notes on this journey map. Your changes are saved automatically.
+            </p>
             <JourneyCanvas
               key={selectedMapId}
               initialNotes={notes}
               initialConnectors={connectors}
-              readOnly={true}
+              readOnly={false}
+              onNotesChange={handleNotesChange}
+              onConnectorsChange={handleConnectorsChange}
             />
           </div>
 

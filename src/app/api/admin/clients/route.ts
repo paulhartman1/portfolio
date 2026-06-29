@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
     const serviceRole = createServiceRoleClient()
 
-    // Get the site URL for the invite redirect
+    // Get the site URL for the invite redirect  
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
     
     const { data: createdUser, error: createUserError } = await serviceRole.auth.admin.inviteUserByEmail(email, {

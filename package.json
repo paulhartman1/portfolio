@@ -13,11 +13,13 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@stripe/stripe-js": "^9.8.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.49.2",
     "next": "^15.5.15",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "stripe": "^22.3.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

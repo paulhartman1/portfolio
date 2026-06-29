@@ -1,0 +1,166 @@
+name: Sync Commits to Project Updates
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync-commits:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history to get commit info
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Supabase JS client
+        run: npm install @supabase/supabase-js
+      
+      - name: Sync commits to Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          node << 'EOF'
+          const { createClient } = require('@supabase/supabase-js');
+          const { execSync } = require('child_process');
+
+          async function syncCommits() {
+            const supabaseUrl = process.env.SUPABASE_URL;
+            const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+            const repoName = process.env.GITHUB_REPOSITORY;
+            
+            if (!supabaseUrl || !supabaseKey) {
+              console.error('Missing Supabase credentials');
+              process.exit(1);
+            }
+
+            const supabase = createClient(supabaseUrl, supabaseKey);
+
+            // Get all projects tracking this repository
+            const { data: projects, error: projectsError } = await supabase
+              .from('projects')
+              .select('id, name, github_repo, github_branch, last_commit_sha')
+              .eq('github_repo', repoName);
+
+            if (projectsError) {
+              console.error('Error fetching projects:', projectsError);
+              process.exit(1);
+            }
+
+            if (!projects || projects.length === 0) {
+              console.log('No projects configured to track this repository');
+              return;
+            }
+
+            console.log(`Found ${projects.length} project(s) tracking ${repoName}`);
+
+            for (const project of projects) {
+              const branch = project.github_branch || 'main';
+              console.log(`\nProcessing project: ${project.name} (branch: ${branch})`);
+
+              // Get commits since last_commit_sha
+              let gitCommand = `git log ${branch} --format='%H|%an|%ae|%s|%b' --reverse`;
+              
+              if (project.last_commit_sha) {
+                gitCommand += ` ${project.last_commit_sha}..HEAD`;
+              } else {
+                // First sync - get last 10 commits
+                gitCommand += ` -10`;
+              }
+
+              let commits;
+              try {
+                const output = execSync(gitCommand, { encoding: 'utf-8' });
+                commits = output.trim().split('\n').filter(line => line);
+              } catch (error) {
+                console.error(`Error getting commits for ${project.name}:`, error.message);
+                continue;
+              }
+
+              if (commits.length === 0) {
+                console.log(`No new commits for project ${project.name}`);
+                continue;
+              }
+
+              console.log(`Found ${commits.length} new commit(s)`);
+
+              let latestSha = project.last_commit_sha;
+
+              for (const commitLine of commits) {
+                const [sha, authorName, authorEmail, subject, ...bodyParts] = commitLine.split('|');
+                const body = bodyParts.join('|').trim();
+                
+                // Check if this commit already exists
+                const { data: existing } = await supabase
+                  .from('project_updates')
+                  .select('id')
+                  .eq('project_id', project.id)
+                  .eq('commit_sha', sha)
+                  .single();
+
+                if (existing) {
+                  console.log(`Commit ${sha.substring(0, 7)} already exists, skipping`);
+                  latestSha = sha;
+                  continue;
+                }
+
+                const commitUrl = `https://github.com/${repoName}/commit/${sha}`;
+                const fullBody = body 
+                  ? `${body}\n\nCommit: ${sha.substring(0, 7)}\nAuthor: ${authorName} <${authorEmail}>`
+                  : `Commit: ${sha.substring(0, 7)}\nAuthor: ${authorName} <${authorEmail}>`;
+
+                // Create project update
+                const { error: insertError } = await supabase
+                  .from('project_updates')
+                  .insert({
+                    project_id: project.id,
+                    title: subject,
+                    body: fullBody,
+                    author_role: 'github',
+                    commit_sha: sha,
+                    commit_url: commitUrl,
+                    is_internal: false,
+                    requires_client_action: false
+                  });
+
+                if (insertError) {
+                  console.error(`Error inserting update for commit ${sha}:`, insertError);
+                  continue;
+                }
+
+                console.log(`✓ Created update for commit ${sha.substring(0, 7)}: ${subject}`);
+                latestSha = sha;
+              }
+
+              // Update last_commit_sha for this project
+              if (latestSha && latestSha !== project.last_commit_sha) {
+                const { error: updateError } = await supabase
+                  .from('projects')
+                  .update({ last_commit_sha: latestSha })
+                  .eq('id', project.id);
+
+                if (updateError) {
+                  console.error(`Error updating last_commit_sha for ${project.name}:`, updateError);
+                } else {
+                  console.log(`✓ Updated last_commit_sha to ${latestSha.substring(0, 7)}`);
+                }
+              }
+            }
+
+            console.log('\n✅ Sync completed successfully');
+          }
+
+          syncCommits().catch(error => {
+            console.error('Fatal error:', error);
+            process.exit(1);
+          });
+          EOF
