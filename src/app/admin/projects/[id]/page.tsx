@@ -97,6 +97,7 @@ export default function ManageProjectPage() {
       loadMessages()
       loadUpdates()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
 
   async function loadProject() {

@@ -65,10 +65,10 @@ export default function AdminPaymentsPage() {
     }
 
     // Normalize the project data (could be array from join)
-    const normalized = (data as any[]).map((payment) => ({
+    const normalized = (data || []).map((payment) => ({
       ...payment,
       project: Array.isArray(payment.project) ? payment.project[0] : payment.project,
-    }))
+    })) as Payment[]
 
     setPayments(normalized)
     setLoading(false)

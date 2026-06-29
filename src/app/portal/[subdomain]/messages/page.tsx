@@ -31,6 +31,7 @@ export default function ClientMessagesPage() {
 
   useEffect(() => {
     loadMessages()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subdomain])
 
   async function loadMessages() {

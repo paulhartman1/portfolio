@@ -38,6 +38,7 @@ export default function PaymentLinkPage() {
 
   useEffect(() => {
     loadProject()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
 
   async function loadProject() {
@@ -70,8 +71,8 @@ export default function PaymentLinkPage() {
 
     if (!clientError && clientRows) {
       const clientList = clientRows
-        .map((row: any) => Array.isArray(row.profiles) ? row.profiles[0] : row.profiles)
-        .filter((c: any) => c)
+        .map((row: { profiles: Client | Client[] | null }) => Array.isArray(row.profiles) ? row.profiles[0] : row.profiles)
+        .filter((c: Client | null): c is Client => Boolean(c))
       setClients(clientList)
       
       // Auto-select first client email
