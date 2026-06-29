@@ -4,10 +4,13 @@ import { createServiceRoleClient } from '@/utils/supabase/service-role';
 import Stripe from 'stripe';
 
 export async function POST(request: NextRequest) {
+  console.log('🔔 Webhook received');
+  
   const body = await request.text();
   const signature = request.headers.get('stripe-signature');
 
   if (!signature) {
+    console.error('❌ No signature in request');
     return NextResponse.json(
       { error: 'No signature provided' },
       { status: 400 }
@@ -16,20 +19,24 @@ export async function POST(request: NextRequest) {
 
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
-    console.error('STRIPE_WEBHOOK_SECRET is not set');
+    console.error('❌ STRIPE_WEBHOOK_SECRET is not set');
     return NextResponse.json(
       { error: 'Webhook secret not configured' },
       { status: 500 }
     );
   }
+  
+  console.log('✓ Webhook secret found');
+  console.log('✓ Signature found');
 
   let event: Stripe.Event;
 
   try {
     // Verify webhook signature
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    console.log(`✓ Event verified: ${event.type}`);
   } catch (err) {
-    console.error('Webhook signature verification failed:', err);
+    console.error('❌ Webhook signature verification failed:', err);
     return NextResponse.json(
       { error: 'Invalid signature' },
       { status: 400 }
@@ -43,9 +50,10 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
+        console.log(`💳 Processing checkout.session.completed for session: ${session.id}`);
         
         // Update payment status to completed
-        const { error: updateError } = await supabase
+        const { data: updateData, error: updateError } = await supabase
           .from('payments')
           .update({
             status: 'completed',
@@ -56,17 +64,18 @@ export async function POST(request: NextRequest) {
               payment_status: session.payment_status,
             },
           })
-          .eq('stripe_session_id', session.id);
+          .eq('stripe_session_id', session.id)
+          .select();
 
         if (updateError) {
-          console.error('Failed to update payment:', updateError);
+          console.error('❌ Failed to update payment:', updateError);
           return NextResponse.json(
             { error: 'Failed to update payment' },
             { status: 500 }
           );
         }
 
-        console.log(`Payment completed for session: ${session.id}`);
+        console.log(`✅ Payment completed for session: ${session.id}`, updateData);
         break;
       }
 

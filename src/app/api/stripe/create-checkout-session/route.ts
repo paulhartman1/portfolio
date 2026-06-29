@@ -71,6 +71,14 @@ export async function POST(request: NextRequest) {
 
     // Create Stripe Checkout Session
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    console.log('💳 Creating Stripe checkout session...', {
+      projectId,
+      amount: Math.round(amount * 100),
+      description,
+      paymentType,
+      customerEmail,
+    });
+    
     const session = await createCheckoutSession({
       projectId,
       amount: Math.round(amount * 100), // Convert dollars to cents
@@ -80,6 +88,8 @@ export async function POST(request: NextRequest) {
       successUrl: `${baseUrl}/admin/payments?session_id={CHECKOUT_SESSION_ID}&success=true`,
       cancelUrl: `${baseUrl}/admin/projects/${projectId}/payment-link?canceled=true`,
     });
+    
+    console.log('✅ Stripe session created:', session.id, session.url);
 
     // Store payment record in database (admin is already authenticated)
     const { error: insertError } = await supabase
