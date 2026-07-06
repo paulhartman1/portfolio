@@ -19,11 +19,26 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Check Supabase configuration
+        id: supabase-config
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_KEY" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping commit sync because Supabase credentials are not configured."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
       
       - name: Install Supabase JS client
+        if: steps.supabase-config.outputs.configured == 'true'
         run: npm install @supabase/supabase-js
       
       - name: Sync commits to Supabase
+        if: steps.supabase-config.outputs.configured == 'true'
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}

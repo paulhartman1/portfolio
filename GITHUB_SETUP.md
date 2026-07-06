@@ -58,9 +58,10 @@ After setting up the secrets and configuring a project:
 
 ### 5. Troubleshooting
 
-**Workflow fails with "Missing Supabase credentials"**
+**Workflow is skipped because Supabase credentials are not configured**
 - Verify both `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` are set in GitHub Secrets
 - Make sure there are no extra spaces in the secret values
+- The workflow now exits successfully with a notice until both secrets are available
 
 **No updates appear after commits**
 - Check that at least one project has `github_repo` set to match your repository
