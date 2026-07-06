@@ -8,26 +8,33 @@ on:
 jobs:
   sync-commits:
     runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Fetch all history to get commit info
+
+      - name: Skip sync when Supabase secrets are not configured
+        if: ${{ env.SUPABASE_URL == '' || env.SUPABASE_SERVICE_KEY == '' }}
+        run: echo "Skipping commit sync because SUPABASE_URL and/or SUPABASE_SERVICE_KEY are not configured."
       
       - name: Setup Node.js
+        if: ${{ env.SUPABASE_URL != '' && env.SUPABASE_SERVICE_KEY != '' }}
         uses: actions/setup-node@v4
         with:
           node-version: '20'
       
       - name: Install Supabase JS client
+        if: ${{ env.SUPABASE_URL != '' && env.SUPABASE_SERVICE_KEY != '' }}
         run: npm install @supabase/supabase-js
       
       - name: Sync commits to Supabase
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
+        if: ${{ env.SUPABASE_URL != '' && env.SUPABASE_SERVICE_KEY != '' }}
         run: |
           node << 'EOF'
           const { createClient } = require('@supabase/supabase-js');
