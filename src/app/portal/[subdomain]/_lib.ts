@@ -19,6 +19,15 @@ type ProjectRecord = {
 export async function getPortalContext(subdomain: string) {
   const supabase = await createClient()
 
+  // Check authentication first so we can redirect to login if needed
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect(`/auth/login?redirect=/portal/${subdomain}`)
+  }
+
   const { data: project, error } = await supabase
     .from('projects')
     .select(`
@@ -40,14 +49,6 @@ export async function getPortalContext(subdomain: string) {
 
   if (error || !project) {
     notFound()
-  }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect(`/auth/login?redirect=/portal/${subdomain}`)
   }
 
   const { data: profile } = await supabase
