@@ -16,6 +16,7 @@ type Project = {
   github_repo: string | null
   github_branch: string | null
   last_commit_sha: string | null
+  proposal_slug: string | null
 }
 
 type ProjectUpdate = {
@@ -81,6 +82,9 @@ export default function ManageProjectPage() {
   const [githubRepo, setGithubRepo] = useState('')
   const [githubBranch, setGithubBranch] = useState('main')
   const [savingGitHub, setSavingGitHub] = useState(false)
+  const [proposalSlug, setProposalSlug] = useState('')
+  const [savedProposalSlug, setSavedProposalSlug] = useState('')
+  const [savingProposal, setSavingProposal] = useState(false)
 
   const selectedClient = useMemo(
     () => clients.find((client) => client.id === selectedClientId) || null,
@@ -109,7 +113,7 @@ export default function ManageProjectPage() {
 
     const { data: projectData, error: projectError} = await supabaseBrowser
       .from('projects')
-      .select('id, name, description, subdomain, url, status, created_at, github_repo, github_branch, last_commit_sha')
+      .select('id, name, description, subdomain, url, status, created_at, github_repo, github_branch, last_commit_sha, proposal_slug')
       .eq('id', projectId)
       .single()
 
@@ -122,6 +126,8 @@ export default function ManageProjectPage() {
     setProject(projectData)
     setGithubRepo(projectData.github_repo || '')
     setGithubBranch(projectData.github_branch || 'main')
+    setProposalSlug(projectData.proposal_slug || '')
+    setSavedProposalSlug(projectData.proposal_slug || '')
 
     const { data: clientRows, error: clientError } = await supabaseBrowser
       .from('project_clients')
@@ -240,6 +246,28 @@ export default function ManageProjectPage() {
       alert(error instanceof Error ? error.message : 'Failed to save GitHub configuration')
     } finally {
       setSavingGitHub(false)
+    }
+  }
+
+  async function saveProposalSlug() {
+    setSavingProposal(true)
+
+    try {
+      const { error } = await supabaseBrowser
+        .from('projects')
+        .update({ proposal_slug: proposalSlug || null })
+        .eq('id', projectId)
+
+      if (error) throw error
+
+      setProject((prev) => prev ? { ...prev, proposal_slug: proposalSlug || null } : null)
+      setSavedProposalSlug(proposalSlug)
+      alert('Proposal saved successfully')
+    } catch (error) {
+      console.error('Error saving proposal:', error)
+      alert(error instanceof Error ? error.message : 'Failed to save proposal')
+    } finally {
+      setSavingProposal(false)
     }
   }
 
@@ -467,6 +495,45 @@ export default function ManageProjectPage() {
               >
                 💳 Create Payment Link
               </Link>
+            </div>
+
+            <div className="border-t border-white/20 pt-4 mt-4">
+              <p className="text-white/50 uppercase tracking-wide text-xs mb-3">Proposal</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-white/70 text-xs mb-1">Proposal Slug</label>
+                  <input
+                    type="text"
+                    value={proposalSlug}
+                    onChange={(e) => setProposalSlug(e.target.value)}
+                    placeholder="firehouse-2026"
+                    className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder:text-white/40"
+                  />
+                  <p className="text-white/50 text-xs mt-1">
+                    Creates route: /portal/{project.subdomain}/proposal/[slug]
+                  </p>
+                </div>
+                {savedProposalSlug && (
+                  <div>
+                    <label className="block text-white/70 text-xs mb-1">Current Proposal</label>
+                    <a
+                      href={`/portal/${project.subdomain}/proposal/${savedProposalSlug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-blue-200 hover:text-blue-100 text-sm break-all"
+                    >
+                      /portal/{project.subdomain}/proposal/{savedProposalSlug}
+                    </a>
+                  </div>
+                )}
+                <button
+                  onClick={saveProposalSlug}
+                  disabled={savingProposal}
+                  className="w-full px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white text-sm font-medium disabled:opacity-50"
+                >
+                  {savingProposal ? 'Saving...' : 'Save Proposal'}
+                </button>
+              </div>
             </div>
 
             <div className="border-t border-white/20 pt-4 mt-4">

@@ -9,6 +9,7 @@ type ProjectRecord = {
   url: string | null
   status: string
   subdomain: string
+  proposal_slug: string | null
   profiles: {
     display_name: string | null
     company: string | null
@@ -28,6 +29,7 @@ export async function getPortalContext(subdomain: string) {
       url,
       status,
       subdomain,
+      proposal_slug,
       profiles (
         display_name,
         company
