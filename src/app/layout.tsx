@@ -15,15 +15,22 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Love On Dev | Custom Software for Small Businesses & Nonprofits",
-  description: "Technical consultant specializing in client portals, database design, and practical solutions for mission-driven organizations. Collaborative, inclusive approach to software development.",
-  keywords: ["custom software development", "client portals", "database design", "nonprofit software", "small business technology", "Supabase", "PostgreSQL"],
+  title: "LoveOnDev | Your Neighborhood Tech Person",
+  description: "Local tech support for WiFi setup, smart home installation, and general tech help. First diagnostic is free!",
+  keywords: ["WiFi setup", "smart home installation", "tech support", "local tech help", "home automation", "Stripe integration"],
   authors: [{ name: "Paul Hartman" }],
+  manifest: "/manifest.json",
+  themeColor: "#9333ea",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "LoveOnDev",
+  },
   openGraph: {
-    title: "Love On Dev | Custom Software for Small Businesses & Nonprofits",
-    description: "Technical consultant specializing in client portals, database design, and practical solutions for mission-driven organizations.",
+    title: "LoveOnDev | Your Neighborhood Tech Person",
+    description: "Local tech support for WiFi setup, smart home installation, and general tech help. First diagnostic is free!",
     url: "https://loveondev.com",
-    siteName: "Love On Dev",
+    siteName: "LoveOnDev",
     locale: "en_US",
     type: "website",
   },
@@ -36,11 +43,32 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#9333ea" />
+        <link rel="apple-touch-icon" href="/logo.png" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <GoogleAnalytics />
         {children}
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').then(
+                  function(registration) {
+                    console.log('ServiceWorker registration successful');
+                  },
+                  function(err) {
+                    console.log('ServiceWorker registration failed: ', err);
+                  }
+                );
+              });
+            }
+          `
+        }} />
       </body>
     </html>
   );
