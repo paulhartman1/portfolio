@@ -4,9 +4,11 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import About from './components/about'
+import QuickHelpForm from './components/quick-help-form'
 
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [showHelpForm, setShowHelpForm] = useState(false)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-100" >
@@ -98,16 +100,17 @@ export default function Home() {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button className="z-10 px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-full hover:from-purple-700 hover:to-indigo-700 hover:scale-105 transition-all shadow-lg hover:shadow-xl" onClick={() => {
-                  window.open('https://tidycal.com/loveondev', '_blank')
-                }}>
+                <button 
+                  className="z-10 px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-full hover:from-purple-700 hover:to-indigo-700 hover:scale-105 transition-all shadow-lg hover:shadow-xl" 
+                  onClick={() => setShowHelpForm(true)}
+                >
                   Get Help Now
                 </button>
-                <button className="px-8 py-4 border-2 border-purple-600 text-purple-600 font-semibold rounded-full hover:bg-purple-600 hover:text-white hover:scale-105 transition-all shadow-md" onClick={() => {
-                  const servicesSection = document.getElementById('services')
-                  servicesSection?.scrollIntoView({ behavior: 'smooth' })
-                }}>
-                  See What I Do
+                <button 
+                  className="px-8 py-4 border-2 border-purple-600 text-purple-600 font-semibold rounded-full hover:bg-purple-600 hover:text-white hover:scale-105 transition-all shadow-md" 
+                  onClick={() => window.open('https://tidycal.com/loveondev', '_blank')}
+                >
+                  Meet With Me
                 </button>
               </div>
             </div>
@@ -117,6 +120,9 @@ export default function Home() {
       </section>
 
       <About />
+      
+      {showHelpForm && <QuickHelpForm onClose={() => setShowHelpForm(false)} />}
+      
       <section id="services" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white to-slate-50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
