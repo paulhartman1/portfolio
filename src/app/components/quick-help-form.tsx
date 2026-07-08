@@ -76,12 +76,12 @@ export default function QuickHelpForm({ onClose }: { onClose: () => void }) {
           <div className="text-center py-8">
             <div className="text-6xl mb-4">✅</div>
             <h3 className="text-2xl font-bold text-slate-900 mb-2">Got it!</h3>
-            <p className="text-slate-600">I'll get back to you ASAP</p>
+            <p className="text-slate-600">I&apos;ll get back to you ASAP</p>
           </div>
         ) : (
           <>
             <h3 className="text-2xl font-bold text-slate-900 mb-2">Need Help?</h3>
-            <p className="text-slate-600 mb-6">Tell me what's going on and how to reach you.</p>
+            <p className="text-slate-600 mb-6">Tell me what&apos;s going on and how to reach you.</p>
 
             {error && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
@@ -134,7 +134,7 @@ export default function QuickHelpForm({ onClose }: { onClose: () => void }) {
 
               <div>
                 <label htmlFor="issue" className="block text-sm font-medium text-slate-700 mb-1">
-                  What's the problem? <span className="text-slate-400">(optional)</span>
+                  What&apos;s the problem? <span className="text-slate-400">(optional)</span>
                 </label>
                 <textarea
                   id="issue"
@@ -156,7 +156,7 @@ export default function QuickHelpForm({ onClose }: { onClose: () => void }) {
             </form>
 
             <p className="text-xs text-slate-500 mt-4 text-center">
-              First diagnostic is always free. I'll respond within a few hours.
+              First diagnostic is always free. I&apos;ll respond within a few hours.
             </p>
           </>
         )}

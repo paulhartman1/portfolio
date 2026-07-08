@@ -2,9 +2,9 @@
 'use client'
 import { useState } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import About from './components/about'
 import QuickHelpForm from './components/quick-help-form'
+import PushNotificationSetup from './components/push-notification-setup'
 
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -122,6 +122,8 @@ export default function Home() {
       <About />
       
       {showHelpForm && <QuickHelpForm onClose={() => setShowHelpForm(false)} />}
+      
+      <PushNotificationSetup />
       
       <section id="services" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white to-slate-50">
         <div className="max-w-7xl mx-auto">
