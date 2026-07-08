@@ -1,21 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabaseBrowser } from '@/utils/supabase/client'
 
-type Client = {
-  id: string
-  email: string
-  display_name: string
-  company: string
-}
-
 export default function AddProjectPage() {
   const router = useRouter()
-  const [clients, setClients] = useState<Client[]>([])
   const [formData, setFormData] = useState({
-    client_id: '',
     name: '',
     description: '',
     subdomain: '',
@@ -24,24 +15,6 @@ export default function AddProjectPage() {
   })
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
-
-  useEffect(() => {
-    loadClients()
-  }, [])
-
-  async function loadClients() {
-    const { data, error } = await supabaseBrowser
-      .from('profiles')
-      .select('id, email, display_name, company')
-      .eq('is_admin', false)
-      .order('display_name')
-
-    if (error) {
-      console.error('Error loading clients:', error)
-    } else {
-      setClients(data || [])
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,7 +25,6 @@ export default function AddProjectPage() {
       const { error } = await supabaseBrowser
         .from('projects')
         .insert({
-          client_id: formData.client_id,
           name: formData.name,
           description: formData.description,
           subdomain: formData.subdomain,
@@ -87,28 +59,11 @@ export default function AddProjectPage() {
     <div>
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-white mb-2">Add New Project</h1>
-        <p className="text-white/80">Create a new preview site for a client</p>
+        <p className="text-white/80">Create a new preview site and assign clients later</p>
       </div>
 
       <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 max-w-2xl">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-white mb-2">Client *</label>
-            <select
-              name="client_id"
-              required
-              value={formData.client_id}
-              onChange={handleChange}
-              className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white [&>option]:bg-gray-900 [&>option]:text-white"
-            >
-              <option value="" className="bg-gray-900 text-white">Select a client...</option>
-              {clients.map((client) => (
-                <option key={client.id} value={client.id} className="bg-gray-900 text-white">
-                  {client.display_name || client.email} {client.company && `(${client.company})`}
-                </option>
-              ))}
-            </select>
-          </div>
 
           <div>
             <label className="block text-white mb-2">Project Name *</label>

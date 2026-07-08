@@ -82,7 +82,7 @@ export default async function AdminProjects() {
                         </a>
                       )}
                       <span className="text-white/60">
-                        Client: {project.profiles?.display_name || project.profiles?.email}
+                        Client: {project.profiles?.display_name || project.profiles?.email || 'No client assigned'}
                       </span>
                     </div>
                   </div>
