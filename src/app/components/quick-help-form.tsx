@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { createClient } from '@/utils/supabase/client'
+import { supabaseBrowser } from '@/utils/supabase/client'
 
 export default function QuickHelpForm({ onClose }: { onClose: () => void }) {
   const [formData, setFormData] = useState({
@@ -26,8 +26,7 @@ export default function QuickHelpForm({ onClose }: { onClose: () => void }) {
     setIsSubmitting(true)
 
     try {
-      const supabase = createClient()
-      const { error: insertError } = await supabase
+      const { error: insertError } = await supabaseBrowser
         .from('help_requests')
         .insert([{
           name: formData.name || null,
