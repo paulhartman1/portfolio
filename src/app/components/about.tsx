@@ -35,14 +35,15 @@ export default function About() {
         <div className="grid lg:grid-cols-3 gap-8  ">
           <div className="lg:col-span-2 space-y-6 p-8 bg-white rounded-xl border border-slate-200 shadow-lg">
             <p className={`text-lg text-slate-700 leading-relaxed`}>
-              I&apos;m passionate about building technology that welcomes everyone. As an advocate for inclusive design
-              and collaborative development, I believe the best solutions come from diverse perspectives working together.
-              My approach combines technical excellence with empathy, ensuring every user feels valued and empowered.
+              I&apos;m a software engineer with 10+ years of experience, but I&apos;m also your neighbor who gets it.
+              Technology should just work—and when it doesn&apos;t, you shouldn&apos;t have to spend hours on hold or
+              watch confusing YouTube tutorials. I show up, fix the problem, and explain it in plain English.
             </p>
             <p className="text-lg text-slate-700 leading-relaxed">
-              Beyond code, I&apos;m dedicated to fostering communities where all voices are heard. Whether mentoring new developers,
-              contributing to accessibility initiatives, or creating spaces for meaningful connection, I&apos;m committed to
-              using technology as a force for positive change. Together, we can build a more inclusive digital world! 🌈
+              Whether it&apos;s getting your WiFi to reach the back bedroom, setting up smart lights that actually turn on,
+              or helping your small business accept payments online—I&apos;ve got you. No tech jargon, no judgment,
+              just friendly help when you need it. <strong>First diagnostic is always free</strong>—I&apos;ll figure out what&apos;s wrong
+              and give you a clear quote before doing any work.
             </p>
           </div>
           <div className="relative">

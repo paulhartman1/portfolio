@@ -4,7 +4,6 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import About from './components/about'
-import Projects from './components/projects'
 
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -29,11 +28,8 @@ export default function Home() {
             {/* Desktop Menu */}
             <div className="hidden md:flex space-x-8">
               <a href="#about" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">About</a>
-              <a href="#projects" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Projects</a>
               <a href="#services" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Services</a>
-              <Link href="/blog" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Blog</Link>
-              <a href="https://tidycal.com/loveondev" target='_blank' className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Contact</a>
-              <a href="/auth/login" className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Login</a>
+              <a href="https://tidycal.com/loveondev" target='_blank' className="text-slate-200 hover:text-purple-400 transition-colors font-medium">Get Help</a>
             </div>
 
             {/* Mobile Hamburger Button */}
@@ -66,40 +62,19 @@ export default function Home() {
                   About
                 </a>
                 <a 
-                  href="#projects" 
-                  className="text-slate-200 hover:text-purple-400 transition-colors font-medium"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Projects
-                </a>
-                <a 
                   href="#services" 
                   className="text-slate-200 hover:text-purple-400 transition-colors font-medium"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Services
                 </a>
-                <Link 
-                  href="/blog" 
-                  className="text-slate-200 hover:text-purple-400 transition-colors font-medium"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Blog
-                </Link>
                 <a 
                   href="https://tidycal.com/loveondev" 
                   target='_blank' 
                   className="text-slate-200 hover:text-purple-400 transition-colors font-medium"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Contact
-                </a>
-                <a 
-                  href="/auth/login" 
-                  className="text-slate-200 hover:text-purple-400 transition-colors font-medium"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Login
+                  Get Help
                 </a>
               </div>
             </div>
@@ -116,23 +91,23 @@ export default function Home() {
                   Love On Dev
                 </h1>
                 <h2 className="text-2xl md:text-3xl lg:text-4xl font-semibold text-slate-700 leading-tight">
-                  Collaborative Technical Solutions for Mission-Driven Organizations
+                  Your Neighborhood Tech Person
                 </h2>
                 <p className="text-xl md:text-2xl text-slate-600 leading-relaxed max-w-3xl mx-auto">
-                  Hi, I&apos;m Paul Hartman—a technical consultant specializing in practical solutions for small businesses and nonprofits.
+                  Hi, I&apos;m Paul—a local software engineer helping people with WiFi, home automation, tech fixes, and small business tech support.
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <button className="z-10 px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-full hover:from-purple-700 hover:to-indigo-700 hover:scale-105 transition-all shadow-lg hover:shadow-xl" onClick={() => {
                   window.open('https://tidycal.com/loveondev', '_blank')
                 }}>
-                  Book a Discovery Call
+                  Get Help Now
                 </button>
                 <button className="px-8 py-4 border-2 border-purple-600 text-purple-600 font-semibold rounded-full hover:bg-purple-600 hover:text-white hover:scale-105 transition-all shadow-md" onClick={() => {
-                  const servicesSection = document.getElementById('projects')
+                  const servicesSection = document.getElementById('services')
                   servicesSection?.scrollIntoView({ behavior: 'smooth' })
                 }}>
-                  View Services
+                  See What I Do
                 </button>
               </div>
             </div>
@@ -142,40 +117,46 @@ export default function Home() {
       </section>
 
       <About />
-      <Projects />
       <section id="services" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white to-slate-50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl lg:text-5xl font-bold text-slate-900 mb-4">
-              What I Offer
+              How I Can Help
             </h2>
+            <p className="text-xl text-slate-600 max-w-2xl mx-auto mb-6">
+              Most jobs take 1-2 hours. First diagnostic is free—I&apos;ll figure out what&apos;s wrong and give you a quote before doing any work.
+            </p>
             <div className="w-24 h-1 bg-gradient-to-r from-purple-600 to-indigo-600 mx-auto rounded-full"></div>
           </div>
           <div className="grid md:grid-cols-2 gap-8">
             {[
               { 
-                icon: '🔧',
-                name: 'Custom Web Applications', 
-                description: 'Client portals, dashboards, and collaborative tools tailored to your workflow—no enterprise bloat.',
+                icon: '📶',
+                name: 'WiFi Setup & Troubleshooting', 
+                description: 'Slow internet? Dead zones? Unreliable connection? I\'ll get your WiFi working properly.',
+                price: '$75-150',
                 color: 'from-blue-400 to-cyan-400' 
               },
               { 
-                icon: '🗄️',
-                name: 'Database Design & Optimization', 
-                description: 'Fast, scalable databases using Supabase/PostgreSQL. Perfect for growing businesses.',
+                icon: '🏠',
+                name: 'Smart Home Setup', 
+                description: 'Smart lights, thermostats, security cameras, voice assistants—I\'ll set it all up and show you how to use it.',
+                price: '$100-300',
                 color: 'from-purple-400 to-indigo-400' 
               },
               { 
-                icon: '🤝',
-                name: 'Technical Advisory & Retainer Support', 
-                description: 'Your go-to expert when ISPs, vendors, or integration partners aren\'t cooperating.',
-                color: 'from-pink-400 to-rose-400' 
+                icon: '💳',
+                name: 'Stripe Integration Help', 
+                description: 'Need to accept payments on your website? Stripe checkout broken? I can fix it.',
+                price: '$200-500',
+                color: 'from-green-400 to-emerald-400' 
               },
               { 
-                icon: '🔗',
-                name: 'System Integration', 
-                description: 'Connect your tools so they work together seamlessly—automate the busy work.',
-                color: 'from-green-400 to-emerald-400' 
+                icon: '💻',
+                name: 'General Tech Support', 
+                description: 'Computer issues, printer setup, software problems, data backup—if it\'s tech, I can probably help.',
+                price: '$75-150/hr',
+                color: 'from-pink-400 to-rose-400' 
               },
             ].map((service, index) => (
               <div
@@ -184,7 +165,8 @@ export default function Home() {
               >
                 <div className="text-5xl mb-4">{service.icon}</div>
                 <h3 className="text-2xl font-bold text-slate-900 mb-3">{service.name}</h3>
-                <p className="text-lg text-slate-600 leading-relaxed">{service.description}</p>
+                <p className="text-lg text-slate-600 leading-relaxed mb-4">{service.description}</p>
+                <p className="text-xl font-bold text-purple-600">{service.price}</p>
               </div>
             ))}
           </div>
