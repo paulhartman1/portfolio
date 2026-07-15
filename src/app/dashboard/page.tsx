@@ -30,8 +30,8 @@ export default async function DashboardPage() {
 
   const { data: projects, error: projectsErr } = await supabase
     .from('projects')
-    .select('id, name, subdomain, status')
-    .eq('client_id', user.id)
+    .select('id, name, subdomain, status, project_clients!inner(client_id)')
+    .eq('project_clients.client_id', user.id)
     .order('created_at', { ascending: false })
 
   if (projectsErr) {

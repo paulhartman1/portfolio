@@ -62,6 +62,12 @@ export default async function AdminLayout({
               >
                 Journey Maps
               </Link>
+              <Link
+                href="/admin/chorale"
+                className="inline-flex items-center px-4 text-white hover:text-white/80 font-medium"
+              >
+                Chorale
+              </Link>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-white/80 text-sm">Admin: {user.email}</span>
