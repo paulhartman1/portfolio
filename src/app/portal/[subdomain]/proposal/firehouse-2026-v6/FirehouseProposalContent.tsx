@@ -39,11 +39,14 @@ export default function FirehouseProposalContent() {
     { text: 'access or cooperation necessary for affected third-party systems', status: 'needed' },
     { text: 'information about existing plugin and service licenses where relevant', status: 'needed' },
     { text: 'the list of reported issues for Appendix A', status: 'needed' },
+    { text: 'theme suggestions (up to 3, or CGT will recommend)', status: 'needed' },
     { text: 'identification of the 10 priority pages', status: 'needed' },
     { text: 'timely review and approval of project decisions', status: 'needed' },
     { text: 'final content, images, and organizational decisions required for the agreed pages', status: 'needed' },
   ])
   const [priorityPages, setPriorityPages] = useState<string[]>(Array(10).fill(''))
+  const [themeSuggestions, setThemeSuggestions] = useState<string[]>(Array(3).fill(''))
+  const [isApproved, setIsApproved] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
 
@@ -60,10 +63,33 @@ export default function FirehouseProposalContent() {
         setAppendixIssues(project.proposal_form_data.appendix_a_issues)
       }
       if (project?.proposal_form_data?.client_responsibilities) {
-        setClientResponsibilities(project.proposal_form_data.client_responsibilities)
+        const saved = project.proposal_form_data.client_responsibilities
+        // If saved data has old structure (8 items), migrate to new structure (9 items with theme)
+        if (saved.length === 8) {
+          const migrated = [
+            saved[0], // WordPress access
+            saved[1], // hosting/server access
+            saved[2], // third-party systems
+            saved[3], // plugin licenses
+            saved[4], // Appendix A
+            { text: 'theme suggestions (up to 3, or CGT will recommend)', status: 'needed' as ChecklistItemStatus }, // NEW
+            saved[5], // 10 priority pages
+            saved[6], // timely review
+            saved[7], // final content
+          ]
+          setClientResponsibilities(migrated)
+        } else {
+          setClientResponsibilities(saved)
+        }
       }
       if (project?.proposal_form_data?.priority_pages) {
         setPriorityPages(project.proposal_form_data.priority_pages)
+      }
+      if (project?.proposal_form_data?.theme_suggestions) {
+        setThemeSuggestions(project.proposal_form_data.theme_suggestions)
+      }
+      if (project?.proposal_form_data?.approval?.accepted) {
+        setIsApproved(true)
       }
     }
 
@@ -85,7 +111,7 @@ export default function FirehouseProposalContent() {
     
     // Auto-update the client responsibility checklist for priority pages
     const filledCount = updated.filter(p => p.trim() !== '').length
-    const priorityPagesIndex = 5 // "identification of the 10 priority pages" is at index 5
+    const priorityPagesIndex = 6 // "identification of the 10 priority pages" is at index 6
     const responsibilitiesUpdated = [...clientResponsibilities]
     
     if (filledCount === 0) {
@@ -94,6 +120,25 @@ export default function FirehouseProposalContent() {
       responsibilitiesUpdated[priorityPagesIndex].status = 'waiting'
     } else {
       responsibilitiesUpdated[priorityPagesIndex].status = 'complete'
+    }
+    
+    setClientResponsibilities(responsibilitiesUpdated)
+  }
+
+  const updateThemeSuggestion = (index: number, value: string) => {
+    const updated = [...themeSuggestions]
+    updated[index] = value
+    setThemeSuggestions(updated)
+    
+    // Auto-update the client responsibility checklist for theme suggestions
+    const filledCount = updated.filter(t => t.trim() !== '').length
+    const themeSuggestionsIndex = 5 // "theme suggestions" is at index 5
+    const responsibilitiesUpdated = [...clientResponsibilities]
+    
+    if (filledCount === 0) {
+      responsibilitiesUpdated[themeSuggestionsIndex].status = 'needed'
+    } else {
+      responsibilitiesUpdated[themeSuggestionsIndex].status = 'complete'
     }
     
     setClientResponsibilities(responsibilitiesUpdated)
@@ -116,7 +161,8 @@ export default function FirehouseProposalContent() {
         proposal_form_data: {
           appendix_a_issues: appendixIssues,
           client_responsibilities: updated, // Use the updated array
-          priority_pages: priorityPages
+          priority_pages: priorityPages,
+          theme_suggestions: themeSuggestions
         }
       })
       .eq('subdomain', subdomain)
@@ -136,7 +182,8 @@ export default function FirehouseProposalContent() {
         proposal_form_data: {
           appendix_a_issues: appendixIssues,
           client_responsibilities: clientResponsibilities,
-          priority_pages: priorityPages
+          priority_pages: priorityPages,
+          theme_suggestions: themeSuggestions
         }
       })
       .eq('subdomain', subdomain)
@@ -390,6 +437,111 @@ export default function FirehouseProposalContent() {
             <li>affected donation or purchase pathways</li>
             <li>representative accessibility and performance checks</li>
           </ul>
+        </>
+      ),
+    },
+    {
+      title: 'Theme Selection',
+      content: (
+        <>
+          <h2>Theme Selection</h2>
+          <p>
+            Firehouse may provide up to three WordPress theme suggestions for consideration.
+          </p>
+          <p>
+            CGT will evaluate those themes for compatibility with the existing WordPress installation, WPBakery content, required plugins, responsive behavior, accessibility, maintainability, and other technical requirements of the project.
+          </p>
+          <p>
+            CGT reserves the right to reject any suggested theme that presents material technical, compatibility, maintenance, or implementation concerns.
+          </p>
+          <p>
+            If none of Firehouse&apos;s suggested themes are suitable, CGT will recommend an appropriate alternative for Firehouse&apos;s review.
+          </p>
+          <p>
+            Once a theme is approved, changing to a different theme will be considered a change in scope and may require additional fees and schedule adjustments.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: 'Theme Suggestions',
+      content: (
+        <>
+          <h2>Suggest WordPress Themes</h2>
+          <p>
+            You may provide up to <strong>three WordPress theme suggestions</strong> for CGT to evaluate. CGT will assess each theme for compatibility with your existing WordPress installation, WPBakery content, plugins, responsive behavior, accessibility, and maintainability.
+          </p>
+          <p style={{ fontSize: '10pt', color: '#7f8c8d', marginBottom: '1.5em' }}>
+            Please provide the theme name and/or URL. If none of your suggestions are technically suitable, CGT will recommend an appropriate alternative.
+          </p>
+          
+          <div style={{ display: 'grid', gap: '1em' }}>
+            {themeSuggestions.map((theme, index) => (
+              <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '0.75em' }}>
+                <div
+                  style={{
+                    minWidth: '2.5em',
+                    height: '2.5em',
+                    borderRadius: '50%',
+                    background: theme ? '#3498db' : '#ecf0f1',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 'bold',
+                    fontSize: '11pt',
+                  }}
+                >
+                  {index + 1}
+                </div>
+                <input
+                  type="text"
+                  value={theme}
+                  onChange={(e) => updateThemeSuggestion(index, e.target.value)}
+                  placeholder={`Theme suggestion ${index + 1} (optional)`}
+                  style={{
+                    flex: 1,
+                    padding: '0.75em',
+                    fontFamily: 'Georgia, serif',
+                    fontSize: '11pt',
+                    border: '1px solid #d8d2c6',
+                    borderRadius: '4px',
+                    background: '#fffaf0',
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: '1.5em', display: 'flex', alignItems: 'center', gap: '1em' }}>
+            <button
+              onClick={saveFormData}
+              disabled={isSaving}
+              style={{
+                padding: '0.5em 1.5em',
+                fontFamily: 'Georgia, serif',
+                fontSize: '11pt',
+                background: isSaving ? '#95a5a6' : '#3498db',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: isSaving ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {isSaving ? 'Saving...' : 'Save Theme Suggestions'}
+            </button>
+            {lastSaved && (
+              <span style={{ fontSize: '10pt', color: '#7f8c8d', fontStyle: 'italic' }}>
+                Last saved: {lastSaved.toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+
+          <div style={{ marginTop: '1.5em', padding: '1em', background: '#fff3cd', borderRadius: '4px', borderLeft: '4px solid #f39c12' }}>
+            <p style={{ margin: 0, fontSize: '10pt', color: '#2c3e50' }}>
+              <strong>Note:</strong> Theme suggestions are optional. All fields may be left blank if you prefer CGT to recommend a theme directly.
+            </p>
+          </div>
         </>
       ),
     },
@@ -877,6 +1029,146 @@ export default function FirehouseProposalContent() {
             By approving this proposal, Firehouse Art Center authorizes Common Ground Technology LLC to perform the work described above for a fixed project fee of <strong>$4,000</strong>, subject to the scope, assumptions, exclusions, and responsibilities stated in this proposal.
           </p>
 
+          <div style={{ marginTop: '2em', padding: '2em', background: '#e8f5e9', borderRadius: '8px', border: '2px solid #27ae60', textAlign: 'center' }}>
+            <p style={{ margin: '0 0 1em 0', fontSize: '12pt', fontWeight: 'bold', color: '#27ae60' }}>
+              Ready to proceed?
+            </p>
+            <div style={{ display: 'flex', gap: '1em', justifyContent: 'center', flexWrap: 'wrap' }}>
+              {!isApproved && (
+                <button
+                  onClick={async () => {
+                  if (confirm('Are you ready to accept this proposal and authorize Common Ground Technology to begin work?')) {
+                    setIsSaving(true)
+                    
+                    // Save approval to projects.proposal_form_data.approval
+                    const { error: projectError } = await supabaseBrowser
+                      .from('projects')
+                      .update({
+                        proposal_form_data: {
+                          ...{ appendix_a_issues: appendixIssues, client_responsibilities: clientResponsibilities, priority_pages: priorityPages, theme_suggestions: themeSuggestions },
+                          approval: {
+                            accepted: true,
+                            accepted_at: new Date().toISOString(),
+                          }
+                        }
+                      })
+                      .eq('subdomain', subdomain)
+                    
+                    // Get current user and project for the message
+                    const { data: { user } } = await supabaseBrowser.auth.getUser()
+                    const { data: project } = await supabaseBrowser
+                      .from('projects')
+                      .select('id')
+                      .eq('subdomain', subdomain)
+                      .single()
+                    
+                    // Send acceptance message to client_messages
+                    if (user && project) {
+                      await supabaseBrowser
+                        .from('client_messages')
+                        .insert({
+                          sender_id: user.id,
+                          project_id: project.id,
+                          message: '✓ Proposal accepted: Firehouse Art Center - WordPress Theme Modernization & Stabilization (v6) - $4,000',
+                          is_read: false,
+                        })
+                    }
+                    
+                    setIsSaving(false)
+                    if (!projectError) {
+                      setIsApproved(true)
+                      alert('Thank you! Your acceptance has been recorded. Paul will reach out shortly to coordinate the first steps.')
+                    } else {
+                      alert('There was an error recording your acceptance. Please contact Paul directly at paul@loveondev.com')
+                    }
+                  }
+                }}
+                disabled={isSaving}
+                style={{
+                  padding: '1em 3em',
+                  fontFamily: 'Georgia, serif',
+                  fontSize: '14pt',
+                  fontWeight: 'bold',
+                  background: isSaving ? '#95a5a6' : '#27ae60',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: isSaving ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                }}
+              >
+                {isSaving ? 'Processing...' : '✓ Accept Proposal'}
+              </button>
+              )}
+              
+              <button
+                onClick={async () => {
+                  const concern = prompt('What questions or concerns do you have about this proposal?')
+                  if (concern && concern.trim()) {
+                    setIsSaving(true)
+                    
+                    const { data: { user } } = await supabaseBrowser.auth.getUser()
+                    const { data: project } = await supabaseBrowser
+                      .from('projects')
+                      .select('id')
+                      .eq('subdomain', subdomain)
+                      .single()
+                    
+                    if (user && project) {
+                      const { error } = await supabaseBrowser
+                        .from('client_messages')
+                        .insert({
+                          sender_id: user.id,
+                          project_id: project.id,
+                          message: `Proposal v6 Question/Concern: ${concern.trim()}`,
+                          is_read: false,
+                        })
+                      
+                      setIsSaving(false)
+                      if (!error) {
+                        alert('Your message has been sent to Paul. He will respond shortly.')
+                      } else {
+                        alert('There was an error sending your message. Please email Paul directly at paul@loveondev.com')
+                      }
+                    } else {
+                      setIsSaving(false)
+                      alert('Unable to send message. Please email Paul directly at paul@loveondev.com')
+                    }
+                  }
+                }}
+                disabled={isSaving}
+                style={{
+                  padding: '1em 2em',
+                  fontFamily: 'Georgia, serif',
+                  fontSize: '11pt',
+                  background: isSaving ? '#95a5a6' : 'white',
+                  color: '#34495e',
+                  border: '2px solid #3498db',
+                  borderRadius: '4px',
+                  cursor: isSaving ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                }}
+              >
+                {isSaving ? 'Sending...' : '💬 Questions or Concerns?'}
+              </button>
+            </div>
+            {isApproved && (
+              <div style={{ marginTop: '1.5em', padding: '1em', background: '#d4edda', borderRadius: '4px', border: '1px solid #c3e6cb' }}>
+                <p style={{ margin: 0, fontSize: '11pt', color: '#155724', fontWeight: 'bold' }}>
+                  ✓ Proposal Accepted
+                </p>
+                <p style={{ margin: '0.5em 0 0 0', fontSize: '10pt', color: '#155724' }}>
+                  Thank you for accepting this proposal. Paul will be in touch shortly to begin the next steps.
+                </p>
+              </div>
+            )}
+            {!isApproved && (
+              <p style={{ margin: '1em 0 0 0', fontSize: '9pt', color: '#7f8c8d', fontStyle: 'italic' }}>
+                Clicking Accept confirms your acceptance of the proposal terms
+              </p>
+            )}
+          </div>
+
           <div style={{ marginTop: '4em', paddingTop: '2em', borderTop: '2px solid #ecf0f1' }}>
             <p><strong>Common Ground Technology LLC</strong></p>
             <p>Paul Hartman — paul@loveondev.com</p>
@@ -1138,6 +1430,30 @@ export default function FirehouseProposalContent() {
           >
             <span>📝</span>
             <span>Select Priority Pages</span>
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => {
+              const themeSuggestionsIndex = pages.findIndex(p => p.title === 'Theme Suggestions')
+              if (themeSuggestionsIndex !== -1) goToPage(themeSuggestionsIndex)
+            }}
+            style={{
+              padding: '0.75em 1.5em',
+              fontFamily: 'Georgia, serif',
+              fontSize: '10pt',
+              background: '#3498db',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5em',
+            }}
+          >
+            <span>🎨</span>
+            <span>Theme Suggestions</span>
           </button>
           
           <button
