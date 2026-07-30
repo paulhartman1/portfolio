@@ -129,7 +129,6 @@ export default function AdminRecordPage() {
 
       const createBody = await createResponse.json()
       const id = createBody.recording.id as string
-      setRecordingId(id)
 
       // Update provider with active session
       setActiveSession({
