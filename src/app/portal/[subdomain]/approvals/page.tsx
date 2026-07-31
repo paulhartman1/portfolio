@@ -21,29 +21,29 @@ export default async function ApprovalsPage({
 
   return (
     <div className="space-y-6">
-      <section className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-        <h2 className="text-xl font-semibold text-white">Decisions</h2>
-        <p className="text-white/75 mt-2">
+      <section className="bg-white border border-[#290D47]/15 rounded-2xl p-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-[#1A0F2E]">Decisions</h2>
+        <p className="text-[#6B6785] mt-2">
           Structured choices that need your input. Approve or request changes so our work can move
           forward. Conversation belongs in Messages; this page is only for decisions with a clear
           state.
         </p>
       </section>
 
-      <section className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">
+      <section className="bg-white border border-[#290D47]/15 rounded-2xl p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-[#1A0F2E] mb-4">
           Waiting on you ({pendingApprovals.length})
         </h3>
         <div className="space-y-4">
           {pendingApprovals.map((approval) => (
-            <div key={approval.id} className="bg-white/5 border border-white/20 rounded-xl p-4">
+            <div key={approval.id} className="bg-[#F8F7F5] border border-[#E8E4EF] rounded-xl p-4">
               <div className="flex flex-wrap justify-between gap-3">
                 <div>
-                  <p className="text-white font-semibold">{approval.title}</p>
+                  <p className="text-[#1A0F2E] font-semibold">{approval.title}</p>
                   {approval.details && (
-                    <p className="text-white/80 text-sm mt-1">{approval.details}</p>
+                    <p className="text-[#6B6785] text-sm mt-1">{approval.details}</p>
                   )}
-                  <p className="text-white/65 text-xs mt-2">
+                  <p className="text-[#6B6785] text-xs mt-2">
                     Due:{' '}
                     {approval.due_at ? new Date(approval.due_at).toLocaleDateString() : 'No deadline'}
                   </p>
@@ -55,7 +55,7 @@ export default async function ApprovalsPage({
                 <textarea
                   name="response_note"
                   rows={2}
-                  className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/20 text-white"
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E]"
                   placeholder="Optional note"
                 />
                 <div className="flex gap-2">
@@ -63,7 +63,7 @@ export default async function ApprovalsPage({
                     type="submit"
                     name="decision"
                     value="approved"
-                    className="px-4 py-2 rounded-lg bg-green-500/80 text-white font-medium hover:bg-green-500"
+                    className="px-4 py-2 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700"
                   >
                     Approve
                   </button>
@@ -71,7 +71,7 @@ export default async function ApprovalsPage({
                     type="submit"
                     name="decision"
                     value="changes_requested"
-                    className="px-4 py-2 rounded-lg bg-amber-500/80 text-white font-medium hover:bg-amber-500"
+                    className="px-4 py-2 rounded-lg bg-amber-600 text-white font-medium hover:bg-amber-700"
                   >
                     Request changes
                   </button>
@@ -80,32 +80,32 @@ export default async function ApprovalsPage({
             </div>
           ))}
           {!pendingApprovals.length && (
-            <p className="text-white/70">No decisions are waiting on you right now.</p>
+            <p className="text-[#6B6785]">No decisions are waiting on you right now.</p>
           )}
         </div>
       </section>
 
-      <section className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">Decided</h3>
+      <section className="bg-white border border-[#290D47]/15 rounded-2xl p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-[#1A0F2E] mb-4">Decided</h3>
         <div className="space-y-3">
           {completedApprovals.map((approval) => (
-            <div key={approval.id} className="bg-white/5 border border-white/20 rounded-xl p-4">
-              <p className="text-white font-medium">{approval.title}</p>
-              <p className="text-white/75 text-sm mt-1 capitalize">
+            <div key={approval.id} className="bg-[#F8F7F5] border border-[#E8E4EF] rounded-xl p-4">
+              <p className="text-[#1A0F2E] font-medium">{approval.title}</p>
+              <p className="text-[#6B6785] text-sm mt-1 capitalize">
                 Status: {approval.status.replace('_', ' ')}
               </p>
               {approval.response_note && (
-                <p className="text-white/75 text-sm mt-1">Note: {approval.response_note}</p>
+                <p className="text-[#6B6785] text-sm mt-1">Note: {approval.response_note}</p>
               )}
               {approval.responded_at && (
-                <p className="text-white/60 text-xs mt-2">
+                <p className="text-[#6B6785] text-xs mt-2">
                   {new Date(approval.responded_at).toLocaleString()}
                 </p>
               )}
             </div>
           ))}
           {!completedApprovals.length && (
-            <p className="text-white/70">No decisions recorded yet.</p>
+            <p className="text-[#6B6785]">No decisions recorded yet.</p>
           )}
         </div>
       </section>
