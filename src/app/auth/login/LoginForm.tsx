@@ -16,7 +16,10 @@ function isLoveondevSubdomain(url: string): boolean {
   }
 }
 
-export default function LoginForm() {
+type LoginBrand = 'loveondev' | 'cgt'
+
+export default function LoginForm({ brand = 'loveondev' }: { brand?: LoginBrand }) {
+  const isCgt = brand === 'cgt'
   const [mode, setMode] = useState<'password' | 'magic-link'>('magic-link')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -30,18 +33,19 @@ export default function LoginForm() {
     setIsLocalhost(window.location.hostname === 'localhost')
   }, [])
 
-  // If the user already has a session and arrived here from the review widget,
-  // immediately bounce back to the widget site. The session cookie is shared
-  // across loveondev.com subdomains, so we only pass a marker (not a token).
+  // Authenticated visitors: review widget return, else go to dashboard.
   useEffect(() => {
-    const reviewReturn = new URLSearchParams(window.location.search).get('review_return')
-    if (!reviewReturn || !isLoveondevSubdomain(reviewReturn)) return
+    const params = new URLSearchParams(window.location.search)
+    const reviewReturn = params.get('review_return')
 
     supabaseBrowser.auth.getSession().then(({ data }) => {
-      if (data.session) {
+      if (!data.session) return
+      if (reviewReturn && isLoveondevSubdomain(reviewReturn)) {
         const separator = reviewReturn.includes('?') ? '&' : '?'
         window.location.href = `${reviewReturn}${separator}review_authed=1`
+        return
       }
+      window.location.href = '/dashboard'
     })
   }, [])
 
@@ -163,53 +167,83 @@ export default function LoginForm() {
     }
   }
 
+  const shellClass = isCgt
+    ? 'min-h-screen flex items-center justify-center bg-[#290D47] px-4'
+    : 'mt-60 flex items-center justify-center'
+  const cardClass = isCgt
+    ? 'p-8 bg-[#1A0F2E] border border-[#00F5E4]/20 rounded-xl w-full max-w-md space-y-6 shadow-xl'
+    : 'p-8 bg-white/5 rounded-xl w-full max-w-md space-y-6'
+  const primaryBtn = isCgt
+    ? 'w-full px-4 py-3 rounded-lg bg-[#00F5E4] text-[#290D47] font-semibold hover:bg-[#00F5E4]/90 transition-colors disabled:opacity-50'
+    : 'w-full px-4 py-3 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50'
+  const secondaryBtn = isCgt
+    ? 'w-full px-4 py-2 rounded-lg bg-white/10 text-[#F8F7F5] text-sm hover:bg-white/20 disabled:opacity-50'
+    : 'w-full px-4 py-2 rounded-lg bg-white/10 text-white text-sm hover:bg-white/20 disabled:opacity-50'
+  const tabActive = isCgt ? 'bg-[#00F5E4] text-[#290D47]' : 'bg-white text-gray-900'
+  const tabIdle = isCgt ? 'bg-white/10 text-[#F8F7F5] hover:bg-white/20' : 'bg-white/10 text-white hover:bg-white/20'
+  const labelClass = isCgt ? 'block text-[#F8F7F5]/80 mb-2' : 'block text-white/80 mb-2'
+  const inputClass = isCgt
+    ? 'w-full px-4 py-3 rounded-md bg-white/5 text-[#F8F7F5] border border-white/10 focus:outline-none focus:border-[#00F5E4]'
+    : 'w-full px-4 py-3 rounded-md bg-white/5 text-white'
+  const noticeClass = isCgt
+    ? 'bg-[#00F5E4]/10 border border-[#00F5E4]/40 rounded-lg p-4 mb-4'
+    : 'bg-purple-500/20 border border-purple-400/50 rounded-lg p-4 mb-4'
+  const mutedText = isCgt ? 'text-[#F8F7F5]/80' : 'text-white/80'
+
   return (
-    <div className=" mt-60 flex items-center justify-center">
-      <div className="p-8 bg-white/5 rounded-xl w-full max-w-md space-y-6">
+    <div className={shellClass}>
+      <div className={cardClass}>
+        {isCgt && (
+          <div className="text-center space-y-1">
+            <p className="text-xs font-semibold tracking-wider text-[#00F5E4]">COMMON GROUND TECHNOLOGY</p>
+            <h1 className="text-2xl font-bold text-[#F8F7F5]">Client Login</h1>
+            <p className="text-sm text-[#F8F7F5]/70">Access your project workspace</p>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => setMode('magic-link')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold ${mode === 'magic-link' ? 'bg-white text-gray-900' : 'bg-white/10 text-white hover:bg-white/20'}`}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold ${mode === 'magic-link' ? tabActive : tabIdle}`}
           >
             Magic Link
           </button>
           <button
             type="button"
             onClick={() => setMode('password')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold ${mode === 'password' ? 'bg-white text-gray-900' : 'bg-white/10 text-white hover:bg-white/20'}`}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold ${mode === 'password' ? tabActive : tabIdle}`}
           >
             Password
           </button>
         </div>
-        <label className="block text-white/80 mb-2">Email</label>
+        <label className={labelClass}>Email</label>
         <input
           type="email"
           required
           value={email}
           onChange={e => setEmail(e.target.value)}
           placeholder="you@domain.tld"
-          className="w-full px-4 py-3 rounded-md bg-white/5 text-white mb-1"
+          className={`${inputClass} mb-1`}
         />
 
         {mode === 'password' ? (
           <form onSubmit={signInWithPassword} className="space-y-4">
             <div>
-              <label className="block text-white/80 mb-2">Password</label>
+              <label className={labelClass}>Password</label>
               <input
                 type="password"
                 required
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full px-4 py-3 rounded-md bg-white/5 text-white"
+                className={inputClass}
               />
             </div>
 
             <button
               type="submit"
               disabled={passwordStatus === 'sending'}
-              className="w-full px-4 py-3 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold"
+              className={primaryBtn}
             >
               {passwordStatus === 'sending' ? 'Signing in…' : 'Sign in with password'}
             </button>
@@ -218,33 +252,32 @@ export default function LoginForm() {
               type="button"
               onClick={sendPasswordReset}
               disabled={resetStatus === 'sending'}
-              className="w-full px-4 py-2 rounded-lg bg-white/10 text-white text-sm hover:bg-white/20 disabled:opacity-50"
+              className={secondaryBtn}
             >
               {resetStatus === 'sending' ? 'Sending reset email…' : 'Forgot password? Send reset link'}
             </button>
           </form>
         ) : (
           <form onSubmit={sendMagicLink} className="space-y-4">
-            <div className="bg-purple-500/20 border border-purple-400/50 rounded-lg p-4 mb-4">
-              <p className="text-white/90 text-sm">
-                <strong>🔐 No password needed!</strong> Enter your email and we&apos;ll send you a secure login link.
+            <div className={noticeClass}>
+              <p className={`${mutedText} text-sm`}>
+                <strong>No password needed.</strong> Enter your email and we&apos;ll send you a secure login link.
               </p>
             </div>
             <button
               type="submit"
               disabled={magicStatus === 'sending' || magicStatus === 'sent'}
-              className="w-full px-4 py-3 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50"
+              className={primaryBtn}
             >
               {magicStatus === 'sending' ? 'Sending…' : magicStatus === 'sent' ? 'Check your email' : 'Send magic link'}
             </button>
           </form>
         )}
 
-        {magicStatus === 'sent' && <p className="text-white/80">A magic link has been sent — check your inbox.</p>}
-        {resetStatus === 'sent' && <p className="text-white/80">Password reset email sent — check your inbox.</p>}
+        {magicStatus === 'sent' && <p className={mutedText}>A magic link has been sent — check your inbox.</p>}
+        {resetStatus === 'sent' && <p className={mutedText}>Password reset email sent — check your inbox.</p>}
         {errorMsg && <p className="text-red-400">{errorMsg}</p>}
 
-        {/* Dev-only password login */}
         {isLocalhost && (
           <div className="pt-4 border-t border-white/20">
             <p className="text-white/60 text-sm mb-2">Dev Mode Only:</p>
@@ -252,7 +285,7 @@ export default function LoginForm() {
               type="button"
               onClick={devPasswordLogin}
               disabled={passwordStatus === 'sending'}
-              className="w-full px-4 py-2 rounded-lg bg-white/10 text-white text-sm hover:bg-white/20"
+              className={secondaryBtn}
             >
               Quick Login (Dev)
             </button>

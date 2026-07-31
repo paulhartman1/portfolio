@@ -1,19 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { authCookieOptions } from '@/utils/supabase/cookie-options'
 
 export async function POST(req: NextRequest) {
   const { access_token, refresh_token } = await req.json()
   const cookieStore = await cookies()
+  const shared = authCookieOptions()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      cookieOptions: shared,
       cookies: {
         getAll: () => cookieStore.getAll(),
         setAll: (cookiesToSet) => {
           cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options)
+            cookieStore.set(name, value, { ...options, ...shared })
           })
         },
       },
