@@ -13,10 +13,10 @@ export default async function PortalLayout({
 
   if (!hasAccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-sky-500 to-emerald-500">
-        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-8 max-w-md text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Access Denied</h1>
-          <p className="text-white/80">You don&apos;t have permission to view this project.</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#F8F7F5]">
+        <div className="bg-white border border-[#E8E4EF] rounded-xl p-8 max-w-md text-center shadow-sm">
+          <h1 className="text-2xl font-bold text-[#1A0F2E] mb-4">Access Denied</h1>
+          <p className="text-[#6B6785]">You don&apos;t have permission to view this project.</p>
         </div>
       </div>
     )
@@ -30,32 +30,29 @@ export default async function PortalLayout({
     .eq('is_read', false)
     .neq('sender_id', user.id)
 
+  // Primary nav: client job concepts only. Preview + Journey stay routable
+  // but are reached contextually (Overview CTAs / deep links), not as peers.
   const navItems = [
-    { label: 'Home', href: `/portal/${subdomain}` },
-    { label: 'Preview', href: `/portal/${subdomain}/preview` },
-    { label: 'Journey', href: `/portal/${subdomain}/journey` },
-    { label: 'Approvals', href: `/portal/${subdomain}/approvals` },
-    { label: 'Files', href: `/portal/${subdomain}/files` },
-    { label: 'Updates', href: `/portal/${subdomain}/updates` },
+    { label: 'Overview', href: `/portal/${subdomain}` },
+    { label: 'Decisions', href: `/portal/${subdomain}/approvals` },
+    { label: 'Documents', href: `/portal/${subdomain}/files` },
+    { label: 'Activity', href: `/portal/${subdomain}/updates` },
     { label: 'Messages', href: `/portal/${subdomain}/messages`, badge: unreadCount || 0 },
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-sky-500 to-emerald-500">
-      <header className="bg-white/10 backdrop-blur-lg border-b border-white/20">
+    <div className="min-h-screen bg-[#F8F7F5] text-[#1A0F2E]">
+      <header className="bg-[#290D47] border-b border-[#1A0F2E]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-wrap gap-4 justify-between items-start">
             <div>
               <h1 className="text-2xl font-bold text-white">{project.name}</h1>
-              <p className="text-white/70 text-sm">
-                {project.profiles?.company || project.profiles?.display_name || 'Client Portal'}
-              </p>
             </div>
             <div className="flex gap-3">
               {isAdmin && (
                 <Link
                   href="/admin"
-                  className="px-4 py-2 rounded-lg bg-white/20 text-white hover:bg-white/30"
+                  className="px-4 py-2 rounded-lg border border-white/25 text-white text-sm hover:bg-white/10"
                 >
                   Admin
                 </Link>
@@ -63,7 +60,7 @@ export default async function PortalLayout({
               <form action="/api/auth/logout" method="POST">
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-white/20 text-white hover:bg-white/30"
+                  className="px-4 py-2 rounded-lg border border-white/25 text-white text-sm hover:bg-white/10"
                 >
                   Logout
                 </button>
@@ -75,11 +72,11 @@ export default async function PortalLayout({
               <Link
                 key={item.href}
                 href={item.href}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white/15 text-white hover:bg-white/25 relative"
+                className="px-3 py-1.5 rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 hover:text-white relative"
               >
                 {item.label}
                 {'badge' in item && item.badge !== undefined && item.badge > 0 && (
-                  <span className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full min-w-[1.25rem] text-center">
+                  <span className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-[#00F5E4] text-[#1A0F2E] text-xs font-bold rounded-full min-w-[1.25rem] text-center">
                     {item.badge}
                   </span>
                 )}

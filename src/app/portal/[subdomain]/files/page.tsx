@@ -33,15 +33,16 @@ export default async function FilesPage({
   return (
     <div className="grid lg:grid-cols-[380px_1fr] gap-6">
       <section className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 h-fit">
-        <h2 className="text-xl font-semibold text-white mb-2">Upload files</h2>
+        <h2 className="text-xl font-semibold text-white mb-2">Documents</h2>
         <p className="text-white/75 text-sm mb-4">
-          Share logos, photos, copy docs, and brand assets for your project.
+          Shared artifacts for our work together — logos, photos, briefs, and other files we both
+          need to find again.
         </p>
         <PortalFileUpload projectId={project.id} />
       </section>
 
       <section className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">Shared files</h3>
+        <h3 className="text-lg font-semibold text-white mb-4">Shared with you</h3>
         <div className="space-y-3">
           {signedUrls.map((file) => (
             <div key={file.id} className="bg-white/5 border border-white/20 rounded-lg p-4">
@@ -71,7 +72,7 @@ export default async function FilesPage({
           ))}
           {!signedUrls.length && (
             <p className="text-white/70 text-sm">
-              No files yet. Upload assets here so everything stays in one place.
+              No documents yet. Upload anything we should both be able to find here.
             </p>
           )}
         </div>

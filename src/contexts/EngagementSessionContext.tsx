@@ -95,6 +95,7 @@ export function EngagementSessionProvider({ children }: { children: ReactNode })
     }
 
     void loadRecentCaptures(activeSession.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSession?.id])
 
   async function loadRecentCaptures(recordingId: string) {

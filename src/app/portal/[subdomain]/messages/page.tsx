@@ -154,7 +154,10 @@ export default function ClientMessagesPage() {
             </span>
           )}
         </div>
-        <p className="text-white/70">Direct communication with your development team</p>
+        <p className="text-white/70">
+          Human-to-human conversation with CGT. Decisions and sign-offs live under Decisions;
+          the engagement record lives under Activity.
+        </p>
       </div>
 
       <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">

@@ -22,9 +22,11 @@ export default async function ApprovalsPage({
   return (
     <div className="space-y-6">
       <section className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-        <h2 className="text-xl font-semibold text-white">Approvals</h2>
+        <h2 className="text-xl font-semibold text-white">Decisions</h2>
         <p className="text-white/75 mt-2">
-          Decisions here keep your project moving. Approve or request changes with one click.
+          Structured choices that need your input. Approve or request changes so our work can move
+          forward. Conversation belongs in Messages; this page is only for decisions with a clear
+          state.
         </p>
       </section>
 
@@ -78,13 +80,13 @@ export default async function ApprovalsPage({
             </div>
           ))}
           {!pendingApprovals.length && (
-            <p className="text-white/70">No approvals are waiting on you right now.</p>
+            <p className="text-white/70">No decisions are waiting on you right now.</p>
           )}
         </div>
       </section>
 
       <section className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">Completed decisions</h3>
+        <h3 className="text-lg font-semibold text-white mb-4">Decided</h3>
         <div className="space-y-3">
           {completedApprovals.map((approval) => (
             <div key={approval.id} className="bg-white/5 border border-white/20 rounded-xl p-4">
@@ -103,7 +105,7 @@ export default async function ApprovalsPage({
             </div>
           ))}
           {!completedApprovals.length && (
-            <p className="text-white/70">No completed approval decisions yet.</p>
+            <p className="text-white/70">No decisions recorded yet.</p>
           )}
         </div>
       </section>

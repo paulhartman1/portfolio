@@ -64,9 +64,13 @@ export default function RushNDushNovationProposalContent() {
             <li>Negotiation notes remain attached to the same analysis workflow for context retention.</li>
           </ul>
           <p>The following screenshots illustrate the concept of the proposed design:</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/Screenshot from 2026-07-16 14-35-32.png" alt="Novation Calculator Preview" style={{ maxWidth: '100%' }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/Screenshot from 2026-07-16 14-48-34.png" alt="Novation Calculator Preview" style={{ maxWidth: '50%' }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/Screenshot from 2026-07-16 14-48-47.png" alt="Novation Calculator Preview" style={{ maxWidth: '50%' }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/Screenshot from 2026-07-16 14-49-03.png" alt="Novation Calculator Preview" style={{ maxWidth: '50%' }} />
         </>
       ),
