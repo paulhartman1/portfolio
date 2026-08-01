@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabaseBrowser } from '@/utils/supabase/client'
+import EngagementRecordings from '@/components/EngagementRecordings'
 
 type Project = {
   id: string
@@ -737,6 +738,10 @@ export default function ManageProjectPage() {
             )}
           </div>
         </section>
+      </div>
+
+      <div className="mt-6">
+        <EngagementRecordings projectId={projectId} />
       </div>
     </div>
   )
