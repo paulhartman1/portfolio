@@ -111,30 +111,30 @@ export default function GenerateApiKeyPage() {
 
   if (loadingSources) {
     return (
-      <div className="max-w-2xl mx-auto p-6">
-        <p>Loading sources...</p>
+      <div className="max-w-2xl mx-auto">
+        <p className="text-[#6B6785]">Loading sources...</p>
       </div>
     )
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <div className="bg-white shadow-md rounded-lg p-8">
-        <h1 className="text-3xl font-bold mb-6 text-gray-900">
+    <div className="max-w-2xl mx-auto">
+      <div className="bg-white border border-[#290D47]/15 rounded-2xl p-8 shadow-sm">
+        <h1 className="text-3xl font-bold mb-6 text-[#1A0F2E]">
           Generate API Key
         </h1>
 
         {!generatedKey ? (
           <>
             <div className="mb-6">
-              <label htmlFor="source" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="source" className="block text-sm font-medium text-[#1A0F2E] mb-2">
                 Source
               </label>
               <select
                 id="source"
                 value={selectedSourceId}
                 onChange={(e) => setSelectedSourceId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-[#E8E4EF] rounded-lg text-[#1A0F2E] focus:outline-none focus:border-[#290D47] [&>option]:bg-white [&>option]:text-[#1A0F2E]"
                 disabled={loading}
               >
                 {sources.map((source) => (
@@ -146,7 +146,7 @@ export default function GenerateApiKeyPage() {
             </div>
 
             <div className="mb-6">
-              <label htmlFor="keyName" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="keyName" className="block text-sm font-medium text-[#1A0F2E] mb-2">
                 Key Name
               </label>
               <input
@@ -155,13 +155,13 @@ export default function GenerateApiKeyPage() {
                 value={keyName}
                 onChange={(e) => setKeyName(e.target.value)}
                 placeholder="Manual API Testing"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-[#E8E4EF] rounded-lg text-[#1A0F2E] placeholder:text-[#6B6785] focus:outline-none focus:border-[#290D47]"
                 disabled={loading}
               />
             </div>
 
             {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-sm">
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
                 {error}
               </div>
             )}
@@ -169,7 +169,7 @@ export default function GenerateApiKeyPage() {
             <button
               onClick={generateKey}
               disabled={loading || !selectedSourceId || !keyName.trim()}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-[#290D47] text-white py-2 px-4 rounded-lg hover:opacity-90 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? 'Generating...' : 'Generate API Key'}
             </button>
@@ -191,8 +191,8 @@ export default function GenerateApiKeyPage() {
               </div>
             </div>
 
-            <div className="mb-6 p-4 bg-gray-100 rounded-md">
-              <code className="text-sm font-mono text-gray-900 break-all">
+            <div className="mb-6 p-4 bg-[#F8F7F5] border border-[#E8E4EF] rounded-xl">
+              <code className="text-sm font-mono text-[#1A0F2E] break-all">
                 {generatedKey}
               </code>
             </div>
@@ -202,13 +202,13 @@ export default function GenerateApiKeyPage() {
                 onClick={() => {
                   navigator.clipboard.writeText(generatedKey)
                 }}
-                className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors"
+                className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
               >
                 Copy to Clipboard
               </button>
               <button
                 onClick={resetForm}
-                className="flex-1 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition-colors"
+                className="flex-1 bg-white border border-[#E8E4EF] text-[#1A0F2E] py-2 px-4 rounded-lg hover:bg-[#F8F7F5] transition-colors"
               >
                 Generate Another
               </button>

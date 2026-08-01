@@ -270,11 +270,11 @@ export default function EditJourneyMapPage() {
   }
 
   if (loading) {
-    return <div className="text-white text-center py-12">Loading...</div>
+    return <div className="text-[#6B6785] text-center py-12">Loading...</div>
   }
 
   if (!journeyMap) {
-    return <div className="text-white text-center py-12">Journey map not found</div>
+    return <div className="text-[#6B6785] text-center py-12">Journey map not found</div>
   }
 
   return (
@@ -283,23 +283,23 @@ export default function EditJourneyMapPage() {
       <div className="mb-8">
         <button
           onClick={() => router.push('/admin/journey')}
-          className="text-white/60 hover:text-white mb-4"
+          className="text-[#6B6785] hover:text-[#290D47] mb-4"
         >
           ← Back to Journey Maps
         </button>
         <div className="flex justify-between items-start">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-4xl font-bold text-white">{journeyMap.title}</h1>
+              <h1 className="text-3xl font-bold text-[#1A0F2E]">{journeyMap.title}</h1>
               <button
                 onClick={() => setEditingMetadata(true)}
-                className="text-white/60 hover:text-white text-sm"
+                className="text-[#6B6785] hover:text-[#290D47] text-sm"
                 title="Edit journey map details"
               >
                 ✏️ Edit
               </button>
             </div>
-            <div className="text-white/80 space-y-1">
+            <div className="text-[#1A0F2E]/80 space-y-1">
               <p>{journeyMap.projects?.name}</p>
               <p className="text-sm">
                 Portal: /portal/{journeyMap.projects?.subdomain}/journey
@@ -314,13 +314,13 @@ export default function EditJourneyMapPage() {
           <button
             onClick={saveChanges}
             disabled={!hasUnsavedChanges || saving}
-            className="px-6 py-3 rounded-lg bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+            className="px-6 py-3 rounded-lg bg-[#290D47] text-white font-semibold hover:opacity-90 disabled:opacity-50 disabled:hover:opacity-50"
           >
             {saving ? 'Saving...' : hasUnsavedChanges ? 'Save Changes *' : 'Saved'}
           </button>
         </div>
         {hasUnsavedChanges && (
-          <p className="text-yellow-300 text-sm mt-2">
+          <p className="text-amber-700 text-sm mt-2">
             * You have unsaved changes
           </p>
         )}
@@ -328,50 +328,50 @@ export default function EditJourneyMapPage() {
 
       {/* Metadata Edit Modal */}
       {editingMetadata && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-white/20 rounded-2xl p-6 max-w-2xl w-full">
-            <h2 className="text-2xl font-bold text-white mb-6">Edit Journey Map Details</h2>
+        <div className="fixed inset-0 bg-[#1A0F2E]/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-[#290D47]/15 rounded-2xl p-6 max-w-2xl w-full shadow-sm">
+            <h2 className="text-xl font-semibold text-[#1A0F2E] mb-6">Edit Journey Map Details</h2>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-white/80 text-sm mb-2">Title *</label>
+                <label className="block text-[#6B6785] text-sm mb-2">Title *</label>
                 <input
                   type="text"
                   value={metadataForm.title}
                   onChange={(e) => setMetadataForm({ ...metadataForm, title: e.target.value })}
-                  className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-purple-500"
+                  className="w-full px-4 py-2 bg-white border border-[#E8E4EF] rounded-lg text-[#1A0F2E] placeholder:text-[#6B6785] focus:outline-none focus:border-[#290D47]"
                   placeholder="Journey Map Title"
                 />
               </div>
 
               <div>
-                <label className="block text-white/80 text-sm mb-2">Slug * (URL-friendly)</label>
+                <label className="block text-[#6B6785] text-sm mb-2">Slug * (URL-friendly)</label>
                 <input
                   type="text"
                   value={metadataForm.slug}
                   onChange={(e) => setMetadataForm({ ...metadataForm, slug: e.target.value })}
-                  className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-purple-500"
+                  className="w-full px-4 py-2 bg-white border border-[#E8E4EF] rounded-lg text-[#1A0F2E] placeholder:text-[#6B6785] focus:outline-none focus:border-[#290D47]"
                   placeholder="journey-map-slug"
                 />
               </div>
 
               <div>
-                <label className="block text-white/80 text-sm mb-2">Description</label>
+                <label className="block text-[#6B6785] text-sm mb-2">Description</label>
                 <textarea
                   value={metadataForm.description}
                   onChange={(e) => setMetadataForm({ ...metadataForm, description: e.target.value })}
-                  className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-purple-500"
+                  className="w-full px-4 py-2 bg-white border border-[#E8E4EF] rounded-lg text-[#1A0F2E] placeholder:text-[#6B6785] focus:outline-none focus:border-[#290D47]"
                   rows={3}
                   placeholder="Brief description of this journey map"
                 />
               </div>
 
               <div>
-                <label className="block text-white/80 text-sm mb-2">Project *</label>
+                <label className="block text-[#6B6785] text-sm mb-2">Project *</label>
                 <select
                   value={metadataForm.project_id}
                   onChange={(e) => setMetadataForm({ ...metadataForm, project_id: e.target.value })}
-                  className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-purple-500"
+                  className="w-full px-4 py-2 bg-white border border-[#E8E4EF] rounded-lg text-[#1A0F2E] focus:outline-none focus:border-[#290D47] [&>option]:bg-white [&>option]:text-[#1A0F2E]"
                 >
                   <option value="">Select a project</option>
                   {projects.map((project) => (
@@ -390,7 +390,7 @@ export default function EditJourneyMapPage() {
                   onChange={(e) => setMetadataForm({ ...metadataForm, is_public: e.target.checked })}
                   className="w-4 h-4"
                 />
-                <label htmlFor="is_public" className="text-white/80 text-sm">
+                <label htmlFor="is_public" className="text-[#6B6785] text-sm">
                   Make this journey map publicly accessible
                 </label>
               </div>
@@ -400,7 +400,7 @@ export default function EditJourneyMapPage() {
               <button
                 onClick={saveMetadata}
                 disabled={saving}
-                className="flex-1 px-6 py-3 rounded-lg bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                className="flex-1 px-6 py-3 rounded-lg bg-[#290D47] text-white font-semibold hover:opacity-90 disabled:opacity-50 disabled:hover:opacity-50"
               >
                 {saving ? 'Saving...' : 'Save Metadata'}
               </button>
@@ -416,7 +416,7 @@ export default function EditJourneyMapPage() {
                   })
                 }}
                 disabled={saving}
-                className="px-6 py-3 rounded-lg bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/20 transition-colors disabled:opacity-50"
+                className="px-6 py-3 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] font-semibold hover:bg-[#F8F7F5] disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -426,7 +426,7 @@ export default function EditJourneyMapPage() {
       )}
 
       {/* Canvas */}
-      <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+      <div className="bg-white border border-[#290D47]/15 rounded-2xl p-6 shadow-sm">
         <JourneyCanvas
           initialNotes={notes}
           readOnly={false}

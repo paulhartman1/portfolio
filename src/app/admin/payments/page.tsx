@@ -98,15 +98,15 @@ export default function AdminPaymentsPage() {
 
   if (loading) {
     return (
-      <div className="text-white text-center py-12">Loading payments...</div>
+      <div className="text-[#6B6785] text-center py-12">Loading payments...</div>
     )
   }
 
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-white mb-2">Payments</h1>
-        <p className="text-white/80">View and manage all project payments</p>
+        <h1 className="text-3xl font-bold text-[#1A0F2E] mb-2">Payments</h1>
+        <p className="text-[#6B6785]">View and manage all project payments</p>
       </div>
 
       {success && sessionId && (
@@ -118,7 +118,7 @@ export default function AdminPaymentsPage() {
         </div>
       )}
 
-      <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+      <div className="bg-white border border-[#290D47]/15 rounded-2xl p-6 shadow-sm">
         {/* Filters */}
         <div className="mb-6 flex gap-2">
           {['all', 'pending', 'completed', 'failed', 'refunded'].map((filter) => (
@@ -127,8 +127,8 @@ export default function AdminPaymentsPage() {
               onClick={() => setStatusFilter(filter)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 statusFilter === filter
-                  ? 'bg-white/20 text-white'
-                  : 'bg-white/5 text-white/60 hover:bg-white/10'
+                  ? 'bg-[#290D47] text-white'
+                  : 'bg-white border border-[#E8E4EF] text-[#6B6785] hover:bg-[#F8F7F5]'
               }`}
             >
               {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
@@ -139,41 +139,41 @@ export default function AdminPaymentsPage() {
         {/* Payments Table */}
         {filteredPayments.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-white/60">No payments found</p>
+            <p className="text-[#6B6785]">No payments found</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-white/20 text-left">
-                  <th className="pb-3 text-white/70 font-medium text-sm">Project</th>
-                  <th className="pb-3 text-white/70 font-medium text-sm">Amount</th>
-                  <th className="pb-3 text-white/70 font-medium text-sm">Customer</th>
-                  <th className="pb-3 text-white/70 font-medium text-sm">Type</th>
-                  <th className="pb-3 text-white/70 font-medium text-sm">Status</th>
-                  <th className="pb-3 text-white/70 font-medium text-sm">Date</th>
+                <tr className="border-b border-[#E8E4EF] text-left">
+                  <th className="pb-3 text-[#6B6785] font-medium text-sm">Project</th>
+                  <th className="pb-3 text-[#6B6785] font-medium text-sm">Amount</th>
+                  <th className="pb-3 text-[#6B6785] font-medium text-sm">Customer</th>
+                  <th className="pb-3 text-[#6B6785] font-medium text-sm">Type</th>
+                  <th className="pb-3 text-[#6B6785] font-medium text-sm">Status</th>
+                  <th className="pb-3 text-[#6B6785] font-medium text-sm">Date</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredPayments.map((payment) => (
-                  <tr key={payment.id} className="border-b border-white/10">
+                  <tr key={payment.id} className="border-b border-[#E8E4EF]">
                     <td className="py-4">
                       <Link
                         href={`/admin/projects/${payment.project_id}`}
-                        className="text-blue-200 hover:text-blue-100 font-medium"
+                        className="text-[#290D47] hover:opacity-80 font-medium"
                       >
                         {payment.project?.name || 'Unknown Project'}
                       </Link>
                       {payment.description && (
-                        <p className="text-white/50 text-xs mt-1">{payment.description}</p>
+                        <p className="text-[#6B6785] text-xs mt-1">{payment.description}</p>
                       )}
                     </td>
-                    <td className="py-4 text-white font-mono">
+                    <td className="py-4 text-[#1A0F2E] font-mono">
                       {formatAmount(payment.amount, payment.currency)}
                     </td>
-                    <td className="py-4 text-white/80 text-sm">{payment.customer_email}</td>
+                    <td className="py-4 text-[#1A0F2E]/80 text-sm">{payment.customer_email}</td>
                     <td className="py-4">
-                      <span className="text-white/70 text-sm capitalize">
+                      <span className="text-[#1A0F2E]/70 text-sm capitalize">
                         {payment.payment_type}
                       </span>
                     </td>
@@ -186,7 +186,7 @@ export default function AdminPaymentsPage() {
                         {payment.status}
                       </span>
                     </td>
-                    <td className="py-4 text-white/70 text-sm">
+                    <td className="py-4 text-[#1A0F2E]/70 text-sm">
                       {payment.paid_at
                         ? new Date(payment.paid_at).toLocaleDateString()
                         : new Date(payment.created_at).toLocaleDateString()}

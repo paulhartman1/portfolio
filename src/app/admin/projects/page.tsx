@@ -29,16 +29,16 @@ export default async function AdminProjects() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-white mb-2">Projects</h1>
-        <p className="text-white/80">Manage all client preview sites</p>
+        <h1 className="text-3xl font-bold text-[#1A0F2E] mb-2">Projects</h1>
+        <p className="text-[#6B6785]">Manage all client preview sites</p>
       </div>
 
-      <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+      <div className="bg-white border border-[#290D47]/15 rounded-2xl p-6 shadow-sm">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-white">All Projects</h2>
+          <h2 className="text-xl font-semibold text-[#1A0F2E]">All Projects</h2>
           <Link
             href="/admin/projects/new"
-            className="px-4 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:scale-105 transition-transform"
+            className="px-4 py-2 rounded-lg bg-[#00F5E4] text-[#1A0F2E] font-semibold hover:opacity-90"
           >
             + New Project
           </Link>
@@ -46,19 +46,19 @@ export default async function AdminProjects() {
 
         {!projects || projects.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-white/60">No projects yet</p>
+            <p className="text-[#6B6785]">No projects yet</p>
           </div>
         ) : (
           <div className="space-y-3">
             {projects.map((project) => (
               <div
                 key={project.id}
-                className="bg-white/5 border border-white/20 rounded-lg p-4"
+                className="bg-[#F8F7F5] border border-[#E8E4EF] rounded-xl p-4"
               >
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold text-white">
+                      <h3 className="text-lg font-semibold text-[#1A0F2E]">
                         {project.name}
                       </h3>
                       <span className={`px-2 py-1 rounded text-xs font-semibold uppercase border ${getStatusColor(project.status)}`}>
@@ -67,7 +67,7 @@ export default async function AdminProjects() {
                     </div>
                     
                     {project.description && (
-                      <p className="text-white/60 text-sm mb-2">{project.description}</p>
+                      <p className="text-[#6B6785] text-sm mb-2">{project.description}</p>
                     )}
                     
                     <div className="flex items-center gap-4 text-sm">
@@ -76,12 +76,12 @@ export default async function AdminProjects() {
                           href={project.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-300 hover:text-blue-200"
+                          className="text-[#290D47] hover:opacity-80"
                         >
                           {project.url}
                         </a>
                       )}
-                      <span className="text-white/60">
+                      <span className="text-[#6B6785]">
                         Client: {project.profiles?.display_name || project.profiles?.email || 'No client assigned'}
                       </span>
                     </div>
@@ -89,7 +89,7 @@ export default async function AdminProjects() {
                   
                   <Link
                     href={`/admin/projects/${project.id}`}
-                    className="px-3 py-1 rounded bg-white/20 text-white hover:bg-white/30 text-sm"
+                    className="px-3 py-1 rounded bg-[#290D47] text-white hover:opacity-90 text-sm"
                   >
                     Manage
                   </Link>

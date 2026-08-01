@@ -294,19 +294,19 @@ export default function AdminRecordPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-4xl font-bold text-white mb-2">Engagement Recorder</h1>
-        <p className="text-white/80">Create a project-linked session and stream audio in chunks.</p>
+        <h1 className="text-3xl font-bold text-[#1A0F2E] mb-2">Engagement Recorder</h1>
+        <p className="text-[#6B6785]">Create a project-linked session and stream audio in chunks.</p>
       </div>
 
-      <section className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 space-y-4">
-        <h2 className="text-2xl font-semibold text-white">Session Setup</h2>
+      <section className="bg-white border border-[#290D47]/15 rounded-2xl p-6 space-y-4 shadow-sm">
+        <h2 className="text-xl font-semibold text-[#1A0F2E]">Session Setup</h2>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="block">
-            <span className="text-white text-sm">Project</span>
+            <span className="text-[#1A0F2E] text-sm">Project</span>
             <select
               value={projectId}
               onChange={(event) => setProjectId(event.target.value)}
-              className="mt-1 w-full px-3 py-2 rounded-lg bg-white/5 border border-white/20 text-white [&>option]:bg-gray-900"
+              className="mt-1 w-full px-3 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] [&>option]:bg-white [&>option]:text-[#1A0F2E]"
               disabled={status !== 'idle'}
             >
               {projects.map((project) => (
@@ -316,11 +316,11 @@ export default function AdminRecordPage() {
           </label>
 
           <label className="block">
-            <span className="text-white text-sm">Session type</span>
+            <span className="text-[#1A0F2E] text-sm">Session type</span>
             <select
               value={sessionType}
               onChange={(event) => setSessionType(event.target.value)}
-              className="mt-1 w-full px-3 py-2 rounded-lg bg-white/5 border border-white/20 text-white [&>option]:bg-gray-900"
+              className="mt-1 w-full px-3 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] [&>option]:bg-white [&>option]:text-[#1A0F2E]"
               disabled={status !== 'idle'}
             >
               <option value="discovery">Discovery</option>
@@ -332,17 +332,17 @@ export default function AdminRecordPage() {
         </div>
 
         <label className="block">
-          <span className="text-white text-sm">Title</span>
+          <span className="text-[#1A0F2E] text-sm">Title</span>
           <input
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            className="mt-1 w-full px-3 py-2 rounded-lg bg-white/5 border border-white/20 text-white"
+            className="mt-1 w-full px-3 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] placeholder:text-[#6B6785]"
             placeholder="Rush N Dush Engagement Session #001"
             disabled={status !== 'idle'}
           />
         </label>
 
-        <label className="flex items-center gap-2 text-white">
+        <label className="flex items-center gap-2 text-[#1A0F2E]">
           <input
             type="checkbox"
             checked={consentGiven}
@@ -353,10 +353,10 @@ export default function AdminRecordPage() {
         </label>
       </section>
 
-      <section className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 space-y-4">
-        <h2 className="text-2xl font-semibold text-white">Recording</h2>
-        <div className="text-5xl font-mono text-white">{formatTime(elapsedSeconds)}</div>
-        <div className="text-white/80 text-sm">Uploaded chunks: {chunkCount}</div>
+      <section className="bg-white border border-[#290D47]/15 rounded-2xl p-6 space-y-4 shadow-sm">
+        <h2 className="text-xl font-semibold text-[#1A0F2E]">Recording</h2>
+        <div className="text-5xl font-mono text-[#1A0F2E]">{formatTime(elapsedSeconds)}</div>
+        <div className="text-[#6B6785] text-sm">Uploaded chunks: {chunkCount}</div>
 
         <div className="flex flex-wrap gap-3">
           <button
@@ -399,18 +399,18 @@ export default function AdminRecordPage() {
               className="w-full"
               onEnded={handlePlaybackEnded}
             />
-            <div className="flex items-center gap-2 text-white/80 text-sm">
+            <div className="flex items-center gap-2 text-[#6B6785] text-sm">
               <button
                 onClick={() => setPlaybackIndex((value) => Math.max(0, value - 1))}
                 disabled={playbackIndex === 0}
-                className="px-2 py-1 rounded bg-white/10 disabled:opacity-40"
+                className="px-2 py-1 rounded bg-[#F8F7F5] border border-[#E8E4EF] text-[#1A0F2E] hover:bg-[#290D47]/5 disabled:opacity-40"
               >
                 Prev
               </button>
               <button
                 onClick={() => setPlaybackIndex((value) => Math.min(playbackUrls.length - 1, value + 1))}
                 disabled={playbackIndex >= playbackUrls.length - 1}
-                className="px-2 py-1 rounded bg-white/10 disabled:opacity-40"
+                className="px-2 py-1 rounded bg-[#F8F7F5] border border-[#E8E4EF] text-[#1A0F2E] hover:bg-[#290D47]/5 disabled:opacity-40"
               >
                 Next
               </button>
@@ -421,7 +421,7 @@ export default function AdminRecordPage() {
       </section>
 
       {notice && (
-        <div className="bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white">
+        <div className="bg-white border border-[#290D47]/15 rounded-lg px-4 py-3 text-[#1A0F2E] shadow-sm">
           {notice}
         </div>
       )}

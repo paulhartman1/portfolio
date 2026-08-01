@@ -108,94 +108,94 @@ export default function AddClientPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-white mb-2">Add New Client</h1>
-        <p className="text-white/80">Invite a client with magic link authentication</p>
+        <h1 className="text-3xl font-bold text-[#1A0F2E] mb-2">Add New Client</h1>
+        <p className="text-[#6B6785]">Invite a client with magic link authentication</p>
       </div>
 
-      <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 max-w-2xl">
+      <div className="bg-white border border-[#290D47]/15 rounded-2xl p-6 max-w-2xl shadow-sm">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-white mb-2">Email *</label>
+            <label className="block text-[#1A0F2E] mb-2">Email *</label>
             <input
               type="email"
               name="email"
               required
               value={formData.email}
               onChange={handleChange}
-              className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white"
+              className="w-full px-4 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] placeholder:text-[#6B6785]"
               placeholder="client@example.com"
             />
           </div>
 
-          <div className="bg-purple-500/20 border border-purple-400/50 rounded-lg p-4">
-            <p className="text-white/90 text-sm">
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <p className="text-[#1A0F2E] text-sm">
               <strong>🔐 Magic Link Login:</strong> No password needed. The client will receive an email with a secure login link.
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-white mb-2">First Name</label>
+              <label className="block text-[#1A0F2E] mb-2">First Name</label>
               <input
                 type="text"
                 name="first_name"
                 value={formData.first_name}
                 onChange={handleChange}
-                className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white"
+                className="w-full px-4 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] placeholder:text-[#6B6785]"
               />
             </div>
 
             <div>
-              <label className="block text-white mb-2">Last Name</label>
+              <label className="block text-[#1A0F2E] mb-2">Last Name</label>
               <input
                 type="text"
                 name="last_name"
                 value={formData.last_name}
                 onChange={handleChange}
-                className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white"
+                className="w-full px-4 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] placeholder:text-[#6B6785]"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-white mb-2">Company</label>
+            <label className="block text-[#1A0F2E] mb-2">Company</label>
             <input
               type="text"
               name="company"
               value={formData.company}
               onChange={handleChange}
-              className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white"
+              className="w-full px-4 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] placeholder:text-[#6B6785]"
             />
           </div>
 
           <div>
-            <label className="block text-white mb-2">Phone</label>
+            <label className="block text-[#1A0F2E] mb-2">Phone</label>
             <input
               type="tel"
               name="phone"
               value={formData.phone}
               onChange={handleChange}
-              className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white"
+              className="w-full px-4 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] placeholder:text-[#6B6785]"
             />
           </div>
 
           <div>
-            <label className="block text-white mb-2">Pronouns</label>
+            <label className="block text-[#1A0F2E] mb-2">Pronouns</label>
             <select
               name="pronouns"
               value={formData.pronouns}
               onChange={handleChange}
-              className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white [&>option]:bg-gray-900 [&>option]:text-white"
+              className="w-full px-4 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] [&>option]:bg-white [&>option]:text-[#1A0F2E]"
             >
-              <option value="" className="bg-gray-900 text-white">Select...</option>
-              <option value="she/her" className="bg-gray-900 text-white">She/Her</option>
-              <option value="he/him" className="bg-gray-900 text-white">He/Him</option>
-              <option value="they/them" className="bg-gray-900 text-white">They/Them</option>
-              <option value="other" className="bg-gray-900 text-white">Other</option>
+              <option value="" className="bg-white text-[#1A0F2E]">Select...</option>
+              <option value="she/her" className="bg-white text-[#1A0F2E]">She/Her</option>
+              <option value="he/him" className="bg-white text-[#1A0F2E]">He/Him</option>
+              <option value="they/them" className="bg-white text-[#1A0F2E]">They/Them</option>
+              <option value="other" className="bg-white text-[#1A0F2E]">Other</option>
             </select>
           </div>
 
-          <div className="pt-4 border-t border-white/20">
+          <div className="pt-4 border-t border-[#E8E4EF]">
             <div className="flex items-center gap-3 mb-4">
               <input
                 type="checkbox"
@@ -203,9 +203,9 @@ export default function AddClientPage() {
                 id="is_admin"
                 checked={formData.is_admin}
                 onChange={handleChange}
-                className="w-5 h-5 rounded bg-white/5 border border-white/20"
+                className="w-5 h-5 rounded border border-[#E8E4EF]"
               />
-              <label htmlFor="is_admin" className="text-white font-semibold">
+              <label htmlFor="is_admin" className="text-[#1A0F2E] font-semibold">
                 Admin Account (full access to all projects)
               </label>
             </div>
@@ -213,15 +213,15 @@ export default function AddClientPage() {
 
           {!formData.is_admin && (
             <div>
-              <label className="block text-white mb-2 font-semibold">
+              <label className="block text-[#1A0F2E] mb-2 font-semibold">
                 Assign to Projects *
               </label>
-              <p className="text-white/60 text-sm mb-3">
+              <p className="text-[#6B6785] text-sm mb-3">
                 Select one or more projects this client will have access to.
               </p>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {projects.length === 0 ? (
-                  <p className="text-white/40 text-sm">No projects available</p>
+                  <p className="text-[#6B6785] text-sm">No projects available</p>
                 ) : (
                   projects.map(project => (
                     <div key={project.id} className="flex items-center gap-3">
@@ -230,9 +230,9 @@ export default function AddClientPage() {
                         id={`project-${project.id}`}
                         checked={selectedProjects.includes(project.id)}
                         onChange={() => toggleProject(project.id)}
-                        className="w-4 h-4 rounded bg-white/5 border border-white/20"
+                        className="w-4 h-4 rounded border border-[#E8E4EF]"
                       />
-                      <label htmlFor={`project-${project.id}`} className="text-white">
+                      <label htmlFor={`project-${project.id}`} className="text-[#1A0F2E]">
                         {project.name}
                       </label>
                     </div>
@@ -243,13 +243,13 @@ export default function AddClientPage() {
           )}
 
           {status === 'success' && (
-            <div className="p-4 rounded-lg bg-green-500/20 border border-green-500/50 text-green-200">
+            <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-green-800">
               {message}
             </div>
           )}
 
           {status === 'error' && (
-            <div className="p-4 rounded-lg bg-red-500/20 border border-red-500/50 text-red-200">
+            <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-800">
               {message}
             </div>
           )}
@@ -258,7 +258,7 @@ export default function AddClientPage() {
             <button
               type="submit"
               disabled={status === 'sending'}
-              className="px-6 py-3 rounded-lg bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50"
+              className="px-6 py-3 rounded-lg bg-[#290D47] text-white font-semibold hover:opacity-90 disabled:opacity-50"
             >
               {status === 'sending' ? 'Creating...' : 'Create Client'}
             </button>
@@ -266,7 +266,7 @@ export default function AddClientPage() {
             <button
               type="button"
               onClick={() => router.back()}
-              className="px-6 py-3 rounded-lg bg-white/20 text-white hover:bg-white/30"
+              className="px-6 py-3 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] hover:bg-[#F8F7F5]"
             >
               Cancel
             </button>

@@ -381,22 +381,22 @@ export default function AdminChoralePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-4xl font-bold text-white mb-2">Chorale Admin</h1>
-        <p className="text-white/80">
+        <h1 className="text-3xl font-bold text-[#1A0F2E] mb-2">Chorale Admin</h1>
+        <p className="text-[#6B6785]">
           Manage private streaming tracks. Upload, replace, edit, delete, reorder, and publish without
           exposing download links or storage object URLs.
         </p>
       </div>
 
-      <section className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+      <section className="bg-white border border-[#290D47]/15 rounded-2xl p-6 shadow-sm">
         <div className="flex flex-wrap gap-3 items-end">
           <div className="flex-1 min-w-64">
-            <label className="block text-sm text-white/70 mb-1">Search</label>
+            <label className="block text-sm text-[#6B6785] mb-1">Search</label>
             <input
               type="text"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white placeholder:text-white/40"
+              className="w-full px-4 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] placeholder:text-[#6B6785]"
               placeholder="Search performances or tracks"
             />
           </div>
@@ -404,44 +404,44 @@ export default function AdminChoralePage() {
             type="button"
             onClick={loadData}
             disabled={loading}
-            className="px-4 py-2 rounded-lg bg-white/20 text-white hover:bg-white/30 disabled:opacity-50"
+            className="px-4 py-2 rounded-lg bg-[#F8F7F5] border border-[#E8E4EF] text-[#1A0F2E] hover:bg-[#290D47]/5 disabled:opacity-50"
           >
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>
-        {error && <p className="text-red-200 text-sm mt-3">{error}</p>}
-        {notice && <p className="text-green-200 text-sm mt-3">{notice}</p>}
+        {error && <p className="text-red-700 text-sm mt-3">{error}</p>}
+        {notice && <p className="text-green-700 text-sm mt-3">{notice}</p>}
       </section>
 
-      <section className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-        <h2 className="text-2xl font-semibold text-white mb-4">Create performance</h2>
+      <section className="bg-white border border-[#290D47]/15 rounded-2xl p-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-[#1A0F2E] mb-4">Create performance</h2>
         <div className="grid gap-3 md:grid-cols-2">
           <input
             type="text"
             value={newPerformanceTitle}
             onChange={(event) => setNewPerformanceTitle(event.target.value)}
             placeholder="Performance title"
-            className="px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white placeholder:text-white/40"
+            className="px-4 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] placeholder:text-[#6B6785]"
           />
           <input
             type="date"
             value={newPerformanceDate}
             onChange={(event) => setNewPerformanceDate(event.target.value)}
-            className="px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white"
+            className="px-4 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E]"
           />
           <textarea
             value={newPerformanceDescription}
             onChange={(event) => setNewPerformanceDescription(event.target.value)}
             placeholder="Description"
             rows={3}
-            className="px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white placeholder:text-white/40 md:col-span-2"
+            className="px-4 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] placeholder:text-[#6B6785] md:col-span-2"
           />
         </div>
         <button
           type="button"
           onClick={createPerformance}
           disabled={creatingPerformance}
-          className="mt-4 px-5 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+          className="mt-4 px-5 py-2 rounded-lg bg-[#290D47] text-white font-semibold hover:opacity-90 disabled:opacity-50 disabled:hover:opacity-50"
         >
           {creatingPerformance ? 'Creating…' : 'Create performance'}
         </button>
@@ -456,18 +456,18 @@ export default function AdminChoralePage() {
           return (
             <article
               key={performance.id}
-              className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6"
+              className="bg-white border border-[#290D47]/15 rounded-2xl p-6 shadow-sm"
             >
               <div className="flex flex-wrap justify-between gap-3 mb-4">
                 <div>
-                  <h3 className="text-2xl font-semibold text-white">{performance.title}</h3>
-                  <p className="text-white/70 text-sm">
+                  <h3 className="text-xl font-semibold text-[#1A0F2E]">{performance.title}</h3>
+                  <p className="text-[#6B6785] text-sm">
                     {performance.performance_date
                       ? new Date(performance.performance_date).toLocaleDateString()
                       : 'No date'}
                   </p>
                   {performance.description && (
-                    <p className="text-white/80 text-sm mt-2">{performance.description}</p>
+                    <p className="text-[#6B6785] text-sm mt-2">{performance.description}</p>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2 h-fit">
@@ -476,7 +476,7 @@ export default function AdminChoralePage() {
                     onClick={() =>
                       updatePerformance(performance.id, { is_published: !performance.is_published })
                     }
-                    className="px-3 py-1 rounded bg-blue-500/30 text-blue-100 hover:bg-blue-500/40 text-sm"
+                    className="px-3 py-1 rounded bg-blue-100 text-blue-800 hover:bg-blue-200 text-sm"
                   >
                     {performance.is_published ? 'Unpublish' : 'Publish'}
                   </button>
@@ -487,51 +487,51 @@ export default function AdminChoralePage() {
                       if (title === null) return
                       void updatePerformance(performance.id, { title: title.trim() || performance.title })
                     }}
-                    className="px-3 py-1 rounded bg-white/20 text-white hover:bg-white/30 text-sm"
+                    className="px-3 py-1 rounded bg-[#F8F7F5] border border-[#E8E4EF] text-[#1A0F2E] hover:bg-[#290D47]/5 text-sm"
                   >
                     Rename
                   </button>
                   <button
                     type="button"
                     onClick={() => deletePerformance(performance.id)}
-                    className="px-3 py-1 rounded bg-red-500/30 text-red-100 hover:bg-red-500/40 text-sm"
+                    className="px-3 py-1 rounded bg-red-100 text-red-800 hover:bg-red-200 text-sm"
                   >
                     Delete
                   </button>
                 </div>
               </div>
 
-              <div className="bg-white/5 border border-white/20 rounded-xl p-4 mb-4">
-                <h4 className="text-white font-semibold mb-3">Upload track (drag-and-drop)</h4>
+              <div className="bg-[#F8F7F5] border border-[#E8E4EF] rounded-xl p-4 mb-4">
+                <h4 className="text-[#1A0F2E] font-semibold mb-3">Upload track (drag-and-drop)</h4>
                 <div className="grid md:grid-cols-3 gap-3">
                   <input
                     type="text"
                     value={trackForm.title}
                     onChange={(event) => updateTrackForm(performance.id, { title: event.target.value })}
                     placeholder="Track title"
-                    className="px-3 py-2 rounded bg-white/5 border border-white/20 text-white placeholder:text-white/40"
+                    className="px-3 py-2 rounded bg-white border border-[#E8E4EF] text-[#1A0F2E] placeholder:text-[#6B6785]"
                   />
                   <input
                     type="text"
                     value={trackForm.composer}
                     onChange={(event) => updateTrackForm(performance.id, { composer: event.target.value })}
                     placeholder="Composer"
-                    className="px-3 py-2 rounded bg-white/5 border border-white/20 text-white placeholder:text-white/40"
+                    className="px-3 py-2 rounded bg-white border border-[#E8E4EF] text-[#1A0F2E] placeholder:text-[#6B6785]"
                   />
                   <input
                     type="text"
                     value={trackForm.description}
                     onChange={(event) => updateTrackForm(performance.id, { description: event.target.value })}
                     placeholder="Description"
-                    className="px-3 py-2 rounded bg-white/5 border border-white/20 text-white placeholder:text-white/40"
+                    className="px-3 py-2 rounded bg-white border border-[#E8E4EF] text-[#1A0F2E] placeholder:text-[#6B6785]"
                   />
                 </div>
                 <div
-                  className="mt-3 p-4 rounded border border-dashed border-white/40 bg-white/5"
+                  className="mt-3 p-4 rounded-xl border border-dashed border-[#290D47]/25 bg-[#F8F7F5]"
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={(event) => handleDropUpload(event, performance)}
                 >
-                  <label className="text-white/80 text-sm block mb-2">
+                  <label className="text-[#6B6785] text-sm block mb-2">
                     Drop an audio file here or choose one manually
                   </label>
                   <input
@@ -544,10 +544,10 @@ export default function AdminChoralePage() {
                       void createTrack(performance, file)
                       event.currentTarget.value = ''
                     }}
-                    className="block text-white text-sm"
+                    className="block text-[#1A0F2E] text-sm"
                   />
                   {isUploading && (
-                    <p className="text-white/80 text-sm mt-2">Uploading… {uploadProgress}%</p>
+                    <p className="text-[#6B6785] text-sm mt-2">Uploading… {uploadProgress}%</p>
                   )}
                 </div>
               </div>
@@ -575,7 +575,7 @@ export default function AdminChoralePage() {
                   />
                 ))}
                 {performance.tracks.length === 0 && (
-                  <p className="text-white/60 text-sm">No tracks yet.</p>
+                  <p className="text-[#6B6785] text-sm">No tracks yet.</p>
                 )}
               </div>
             </article>
@@ -618,7 +618,7 @@ function TrackRow({
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
-      className="bg-white/5 border border-white/20 rounded-lg p-4"
+      className="bg-[#F8F7F5] border border-[#E8E4EF] rounded-xl p-4"
     >
       {editing ? (
         <div className="space-y-2 mb-3">
@@ -626,7 +626,7 @@ function TrackRow({
             type="text"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            className="w-full px-3 py-2 rounded bg-white/5 border border-white/20 text-white"
+            className="w-full px-3 py-2 rounded bg-white border border-[#E8E4EF] text-[#1A0F2E]"
           />
           <div className="grid md:grid-cols-2 gap-2">
             <input
@@ -634,14 +634,14 @@ function TrackRow({
               value={composer}
               onChange={(event) => setComposer(event.target.value)}
               placeholder="Composer"
-              className="px-3 py-2 rounded bg-white/5 border border-white/20 text-white"
+              className="px-3 py-2 rounded bg-white border border-[#E8E4EF] text-[#1A0F2E]"
             />
             <input
               type="text"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               placeholder="Description"
-              className="px-3 py-2 rounded bg-white/5 border border-white/20 text-white"
+              className="px-3 py-2 rounded bg-white border border-[#E8E4EF] text-[#1A0F2E]"
             />
           </div>
           <div className="flex gap-2">
@@ -666,7 +666,7 @@ function TrackRow({
                 setComposer(track.composer || '')
                 setDescription(track.description || '')
               }}
-              className="px-3 py-1 rounded bg-white/20 text-white hover:bg-white/30 text-sm"
+              className="px-3 py-1 rounded bg-[#F8F7F5] border border-[#E8E4EF] text-[#1A0F2E] hover:bg-[#290D47]/5 text-sm"
             >
               Cancel
             </button>
@@ -675,16 +675,16 @@ function TrackRow({
       ) : (
         <div className="flex flex-wrap justify-between gap-2 mb-3">
           <div>
-            <p className="text-white font-semibold">{track.title}</p>
-            <p className="text-white/70 text-sm">
+            <p className="text-[#1A0F2E] font-semibold">{track.title}</p>
+            <p className="text-[#6B6785] text-sm">
               {track.composer || 'Composer unknown'}
               {track.duration_seconds ? ` • ${Math.round(track.duration_seconds)}s` : ''}
             </p>
-            {track.description && <p className="text-white/70 text-sm mt-1">{track.description}</p>}
+            {track.description && <p className="text-[#6B6785] text-sm mt-1">{track.description}</p>}
           </div>
           <span
             className={`h-fit px-2 py-1 rounded text-xs font-semibold ${
-              track.is_published ? 'bg-green-600/30 text-green-100' : 'bg-white/20 text-white/80'
+              track.is_published ? 'bg-green-100 text-green-800' : 'bg-[#F8F7F5] border border-[#E8E4EF] text-[#6B6785]'
             }`}
           >
             {track.is_published ? 'Published' : 'Unpublished'}
@@ -696,18 +696,18 @@ function TrackRow({
         <button
           type="button"
           onClick={() => setEditing((current) => !current)}
-          className="px-3 py-1 rounded bg-white/20 text-white hover:bg-white/30 text-sm"
+          className="px-3 py-1 rounded bg-[#F8F7F5] border border-[#E8E4EF] text-[#1A0F2E] hover:bg-[#290D47]/5 text-sm"
         >
           {editing ? 'Close' : 'Edit metadata'}
         </button>
         <button
           type="button"
           onClick={() => void onUpdate(track.id, { is_published: !track.is_published })}
-          className="px-3 py-1 rounded bg-blue-500/30 text-blue-100 hover:bg-blue-500/40 text-sm"
+          className="px-3 py-1 rounded bg-blue-100 text-blue-800 hover:bg-blue-200 text-sm"
         >
           {track.is_published ? 'Unpublish' : 'Publish'}
         </button>
-        <label className="px-3 py-1 rounded bg-purple-500/30 text-purple-100 hover:bg-purple-500/40 text-sm cursor-pointer">
+        <label className="px-3 py-1 rounded bg-purple-100 text-purple-800 hover:bg-purple-200 text-sm cursor-pointer">
           Replace audio
           <input
             type="file"
@@ -724,7 +724,7 @@ function TrackRow({
         <button
           type="button"
           onClick={() => void onDelete(track.id)}
-          className="px-3 py-1 rounded bg-red-500/30 text-red-100 hover:bg-red-500/40 text-sm"
+          className="px-3 py-1 rounded bg-red-100 text-red-800 hover:bg-red-200 text-sm"
         >
           Delete
         </button>

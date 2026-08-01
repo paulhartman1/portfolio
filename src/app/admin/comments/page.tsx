@@ -109,7 +109,7 @@ export default function AdminComments() {
   if (loading) {
     return (
       <div>
-        <h1 className="text-4xl font-bold text-white mb-8">Loading comments...</h1>
+        <h1 className="text-3xl font-bold text-[#1A0F2E] mb-8">Loading comments...</h1>
       </div>
     )
   }
@@ -119,8 +119,8 @@ export default function AdminComments() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-white mb-2">Client Review Comments</h1>
-        <p className="text-white/80">Manage feedback from clients</p>
+        <h1 className="text-3xl font-bold text-[#1A0F2E] mb-2">Client Review Comments</h1>
+        <p className="text-[#6B6785]">Manage feedback from clients</p>
       </div>
 
       {/* Filter Tabs */}
@@ -131,8 +131,8 @@ export default function AdminComments() {
             onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded-lg font-medium capitalize ${
               filter === f
-                ? 'bg-white text-indigo-900'
-                : 'bg-white/20 text-white hover:bg-white/30'
+                ? 'bg-[#290D47] text-white'
+                : 'bg-white border border-[#E8E4EF] text-[#6B6785] hover:bg-[#F8F7F5]'
             }`}
           >
             {f} ({comments.filter(c => f === 'all' || c.status === f).length})
@@ -143,12 +143,12 @@ export default function AdminComments() {
       {/* Comments List */}
       <div className="space-y-4">
         {filteredComments.length === 0 ? (
-          <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-12 text-center">
-            <p className="text-white/60">No comments found</p>
+          <div className="bg-white border border-[#290D47]/15 rounded-2xl p-12 text-center shadow-sm">
+            <p className="text-[#6B6785]">No comments found</p>
           </div>
         ) : (
           filteredComments.map((comment) => (
-            <div key={comment.id} className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+            <div key={comment.id} className="bg-white border border-[#290D47]/15 rounded-2xl p-6 shadow-sm">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex gap-2">
                   <span className={`px-2 py-1 rounded text-xs font-semibold uppercase border ${getPriorityColor(comment.priority)}`}>
@@ -160,15 +160,15 @@ export default function AdminComments() {
                 </div>
                 <button
                   onClick={() => deleteComment(comment.id)}
-                  className="text-red-300 hover:text-red-200 text-sm font-medium"
+                  className="text-red-600 hover:text-red-500 text-sm font-medium"
                 >
                   Delete
                 </button>
               </div>
 
-              <p className="text-white text-lg mb-3">{comment.comment_text}</p>
+              <p className="text-[#1A0F2E] text-lg mb-3">{comment.comment_text}</p>
 
-              <div className="text-sm text-white/60 mb-4 space-y-1">
+              <div className="text-sm text-[#6B6785] mb-4 space-y-1">
                 <p><strong>Project:</strong> {comment.projects?.name || 'Unknown'}</p>
                 <p><strong>Client:</strong> {comment.profiles?.display_name || comment.profiles?.email}</p>
                 <p><strong>URL:</strong> {comment.url}</p>
@@ -181,7 +181,7 @@ export default function AdminComments() {
                 {comment.status !== 'new' && (
                   <button
                     onClick={() => updateStatus(comment.id, 'new')}
-                    className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+                    className="px-3 py-1 bg-[#290D47] text-white rounded-lg text-sm hover:opacity-90"
                   >
                     Mark as New
                   </button>
@@ -189,7 +189,7 @@ export default function AdminComments() {
                 {comment.status !== 'in-progress' && (
                   <button
                     onClick={() => updateStatus(comment.id, 'in-progress')}
-                    className="px-3 py-1 bg-purple-500 text-white rounded text-sm hover:bg-purple-600"
+                    className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
                   >
                     Mark as In Progress
                   </button>
@@ -197,7 +197,7 @@ export default function AdminComments() {
                 {comment.status !== 'resolved' && (
                   <button
                     onClick={() => updateStatus(comment.id, 'resolved')}
-                    className="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600"
+                    className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
                   >
                     ✓ Mark as Resolved
                   </button>

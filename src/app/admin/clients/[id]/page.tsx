@@ -271,28 +271,28 @@ export default function ClientDetailPage() {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'bg-red-500/20 text-red-200 border-red-500/50'
-      case 'medium': return 'bg-yellow-500/20 text-yellow-200 border-yellow-500/50'
-      case 'low': return 'bg-green-500/20 text-green-200 border-green-500/50'
-      default: return 'bg-white/20 text-white border-white/30'
+      case 'high': return 'bg-red-100 text-red-800 border-red-200'
+      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      case 'low': return 'bg-green-100 text-green-800 border-green-200'
+      default: return 'bg-gray-100 text-gray-800 border-gray-200'
     }
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'new': return 'bg-blue-500/20 text-blue-200'
-      case 'in-progress': return 'bg-purple-500/20 text-purple-200'
-      case 'resolved': return 'bg-green-500/20 text-green-200'
-      default: return 'bg-white/20 text-white'
+      case 'new': return 'bg-blue-100 text-blue-800'
+      case 'in-progress': return 'bg-purple-100 text-purple-800'
+      case 'resolved': return 'bg-green-100 text-green-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
   if (loading) {
-    return <div className="text-white text-center py-12">Loading...</div>
+    return <div className="text-[#6B6785] text-center py-12">Loading...</div>
   }
 
   if (!client) {
-    return <div className="text-white text-center py-12">Client not found</div>
+    return <div className="text-[#6B6785] text-center py-12">Client not found</div>
   }
 
   // Filter out projects already assigned to this client
@@ -305,14 +305,14 @@ export default function ClientDetailPage() {
       <div className="mb-8">
         <button
           onClick={() => router.back()}
-          className="text-white/60 hover:text-white mb-4"
+          className="text-[#6B6785] hover:text-[#290D47] mb-4"
         >
           ← Back to clients
         </button>
-        <h1 className="text-4xl font-bold text-white mb-2">
+        <h1 className="text-3xl font-bold text-[#1A0F2E] mb-2">
           {client.display_name || client.email}
         </h1>
-        <div className="text-white/80 space-y-1">
+        <div className="text-[#1A0F2E]/80 space-y-1">
           <p>{client.email}</p>
           {client.company && <p>{client.company}</p>}
           {client.phone && <p>{client.phone}</p>}
@@ -321,19 +321,19 @@ export default function ClientDetailPage() {
       </div>
 
       {/* Projects Section */}
-      <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 mb-6">
-        <h2 className="text-2xl font-semibold text-white mb-4">Projects</h2>
+      <div className="bg-white border border-[#290D47]/15 rounded-2xl p-6 mb-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-[#1A0F2E] mb-4">Projects</h2>
 
         {/* Assign Project */}
         <div className="mb-6 flex gap-2">
           <select
             value={selectedProjectId}
             onChange={(e) => setSelectedProjectId(e.target.value)}
-            className="flex-1 px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white [&>option]:bg-gray-900 [&>option]:text-white"
+            className="flex-1 px-4 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] [&>option]:bg-white [&>option]:text-[#1A0F2E]"
           >
-            <option value="" className="bg-gray-900 text-white">Select a project to assign...</option>
+            <option value="" className="bg-white text-[#1A0F2E]">Select a project to assign...</option>
             {availableProjects.map((project) => (
-              <option key={project.id} value={project.id} className="bg-gray-900 text-white">
+              <option key={project.id} value={project.id} className="bg-white text-[#1A0F2E]">
                 {project.name}
               </option>
             ))}
@@ -341,7 +341,7 @@ export default function ClientDetailPage() {
           <button
             onClick={assignProject}
             disabled={!selectedProjectId || assigningProject}
-            className="px-6 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+            className="px-6 py-2 rounded-lg bg-[#290D47] text-white font-semibold hover:opacity-90 disabled:opacity-50 disabled:hover:opacity-50"
           >
             {assigningProject ? 'Assigning...' : 'Assign Project'}
           </button>
@@ -349,31 +349,31 @@ export default function ClientDetailPage() {
 
         {/* Projects List */}
         {projects.length === 0 ? (
-          <p className="text-white/60 text-center py-6">No projects assigned yet</p>
+          <p className="text-[#6B6785] text-center py-6">No projects assigned yet</p>
         ) : (
           <div className="space-y-3">
             {projects.map((project) => (
               <div
                 key={project.id}
-                className="bg-white/5 border border-white/20 rounded-lg p-4 flex justify-between items-center"
+                className="bg-[#F8F7F5] border border-[#E8E4EF] rounded-xl p-4 flex justify-between items-center"
               >
                 <div>
-                  <h3 className="text-lg font-semibold text-white">{project.name}</h3>
-                  <p className="text-white/60 text-sm">
+                  <h3 className="text-lg font-semibold text-[#1A0F2E]">{project.name}</h3>
+                  <p className="text-[#6B6785] text-sm">
                     {project.subdomain}.loveondev.com
                   </p>
-                  <p className="text-white/40 text-sm capitalize">Status: {project.status}</p>
+                  <p className="text-[#6B6785] text-sm capitalize">Status: {project.status}</p>
                 </div>
                 <div className="flex gap-2">
                   <Link
                     href={`/admin/projects/${project.id}`}
-                    className="px-4 py-2 rounded-lg bg-white/20 text-white hover:bg-white/30 text-sm"
+                    className="px-4 py-2 rounded-lg bg-[#290D47] text-white hover:opacity-90 text-sm"
                   >
                     View
                   </Link>
                   <button
                     onClick={() => unassignProject(project.id)}
-                    className="px-4 py-2 rounded-lg bg-red-500/20 text-red-200 hover:bg-red-500/30 text-sm"
+                    className="px-4 py-2 rounded-lg bg-red-100 text-red-800 hover:bg-red-200 text-sm"
                   >
                     Remove
                   </button>
@@ -385,9 +385,9 @@ export default function ClientDetailPage() {
       </div>
 
       {/* Messages Section */}
-      <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 mb-6">
+      <div className="bg-white border border-[#290D47]/15 rounded-2xl p-6 mb-6 shadow-sm">
         <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-2xl font-semibold text-white">
+          <h2 className="text-xl font-semibold text-[#1A0F2E]">
             Messages ({messages.length})
           </h2>
           {(() => {
@@ -405,35 +405,35 @@ export default function ClientDetailPage() {
         {/* Messages Thread */}
         <div className="space-y-3 mb-4 max-h-96 overflow-y-auto">
           {messages.length === 0 ? (
-            <p className="text-white/60 text-center py-6">No messages yet</p>
+            <p className="text-[#6B6785] text-center py-6">No messages yet</p>
           ) : (
             messages.map((msg) => {
               const isAdmin = msg.sender?.is_admin || false
               return (
                 <div
                   key={msg.id}
-                  className={`p-4 rounded-lg ${
+                  className={`p-4 rounded-xl ${
                     isAdmin
-                      ? 'bg-purple-500/20 border border-purple-500/30 ml-8'
-                      : 'bg-white/5 border border-white/20 mr-8'
+                      ? 'bg-purple-50 border border-purple-200 ml-8'
+                      : 'bg-[#F8F7F5] border border-[#E8E4EF] mr-8'
                   }`}
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-white">
+                      <span className="font-semibold text-[#1A0F2E]">
                         {msg.sender?.display_name || msg.sender?.email || 'Unknown'}
                       </span>
                       {isAdmin && (
-                        <span className="px-2 py-0.5 bg-purple-500/50 text-purple-100 text-xs rounded uppercase font-semibold">
+                        <span className="px-2 py-0.5 bg-purple-600 text-white text-xs rounded uppercase font-semibold">
                           Admin
                         </span>
                       )}
                     </div>
-                    <span className="text-xs text-white/50">
+                    <span className="text-xs text-[#6B6785]">
                       {new Date(msg.created_at).toLocaleString()}
                     </span>
                   </div>
-                  <p className="text-white/90 whitespace-pre-wrap">{msg.message}</p>
+                  <p className="text-[#1A0F2E] whitespace-pre-wrap">{msg.message}</p>
                 </div>
               )
             })
@@ -451,14 +451,14 @@ export default function ClientDetailPage() {
               }
             }}
             placeholder="Type your message... (Ctrl/Cmd+Enter to send)"
-            className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/20 text-white placeholder:text-white/40 resize-none focus:outline-none focus:border-purple-500/50"
+            className="w-full px-4 py-3 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] placeholder:text-[#6B6785] resize-none focus:outline-none focus:border-[#290D47]"
             rows={3}
           />
           <div className="flex justify-end">
             <button
               onClick={sendMessage}
               disabled={!newMessage.trim() || sendingMessage}
-              className="px-6 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-purple-500 text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+              className="px-6 py-2 rounded-lg bg-[#290D47] text-white font-semibold hover:opacity-90 disabled:opacity-50 disabled:hover:opacity-50"
             >
               {sendingMessage ? 'Sending...' : 'Send Message'}
             </button>
@@ -467,17 +467,17 @@ export default function ClientDetailPage() {
       </div>
 
       {/* Comments Section */}
-      <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-        <h2 className="text-2xl font-semibold text-white mb-4">
+      <div className="bg-white border border-[#290D47]/15 rounded-2xl p-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-[#1A0F2E] mb-4">
           Review Comments ({comments.length})
         </h2>
 
         {comments.length === 0 ? (
-          <p className="text-white/60 text-center py-6">No comments yet</p>
+          <p className="text-[#6B6785] text-center py-6">No comments yet</p>
         ) : (
           <div className="space-y-4">
             {comments.map((comment) => (
-              <div key={comment.id} className="bg-white/5 border border-white/20 rounded-lg p-4">
+              <div key={comment.id} className="bg-[#F8F7F5] border border-[#E8E4EF] rounded-xl p-4">
                 <div className="flex gap-2 mb-3">
                   <span className={`px-2 py-1 rounded text-xs font-semibold uppercase border ${getPriorityColor(comment.priority)}`}>
                     {comment.priority}
@@ -487,9 +487,9 @@ export default function ClientDetailPage() {
                   </span>
                 </div>
 
-                <p className="text-white mb-3">{comment.comment_text}</p>
+                <p className="text-[#1A0F2E] mb-3">{comment.comment_text}</p>
 
-                <div className="text-sm text-white/60 mb-3 space-y-1">
+                <div className="text-sm text-[#6B6785] mb-3 space-y-1">
                   <p><strong>Project:</strong> {comment.projects?.name || 'Unknown'}</p>
                   <p><strong>URL:</strong> {comment.url}</p>
                   <p><strong>Created:</strong> {new Date(comment.created_at).toLocaleString()}</p>
@@ -500,7 +500,7 @@ export default function ClientDetailPage() {
                   {comment.status !== 'new' && (
                     <button
                       onClick={() => updateCommentStatus(comment.id, 'new')}
-                      className="px-3 py-1 bg-blue-500/20 text-blue-200 rounded text-sm hover:bg-blue-500/30"
+                      className="px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm hover:bg-blue-200"
                     >
                       New
                     </button>
@@ -508,7 +508,7 @@ export default function ClientDetailPage() {
                   {comment.status !== 'in-progress' && (
                     <button
                       onClick={() => updateCommentStatus(comment.id, 'in-progress')}
-                      className="px-3 py-1 bg-purple-500/20 text-purple-200 rounded text-sm hover:bg-purple-500/30"
+                      className="px-3 py-1 bg-purple-100 text-purple-800 rounded text-sm hover:bg-purple-200"
                     >
                       In Progress
                     </button>
@@ -516,7 +516,7 @@ export default function ClientDetailPage() {
                   {comment.status !== 'resolved' && (
                     <button
                       onClick={() => updateCommentStatus(comment.id, 'resolved')}
-                      className="px-3 py-1 bg-green-500/20 text-green-200 rounded text-sm hover:bg-green-500/30"
+                      className="px-3 py-1 bg-green-100 text-green-800 rounded text-sm hover:bg-green-200"
                     >
                       ✓ Resolved
                     </button>
