@@ -3,7 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
-  await supabase.auth.signOut()
+  await supabase.auth.signOut({ scope: 'local' })
   
   // Build absolute redirect URL for localhost or prod
   const host = req.headers.get('host') || 'localhost:3000'

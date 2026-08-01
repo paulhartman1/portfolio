@@ -52,6 +52,7 @@ export function EngagementSessionProvider({ children }: { children: ReactNode })
   const [recentCaptures, setRecentCaptures] = useState<Capture[]>([])
   const [dockVisible, setDockVisible] = useState(true)
   const pathname = usePathname()
+  const isRecordPage = pathname.startsWith('/admin/record')
 
   const pageContext: PageContext = {
     path: pathname,
@@ -159,7 +160,7 @@ export function EngagementSessionProvider({ children }: { children: ReactNode })
         recordingState,
         pageContext,
         recentCaptures,
-        dockVisible,
+        dockVisible: dockVisible && !isRecordPage,
         toggleDock,
         addCapture,
         setActiveSession,
