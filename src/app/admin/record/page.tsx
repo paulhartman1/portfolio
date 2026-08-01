@@ -10,6 +10,90 @@ type Project = {
 }
 
 type RecorderStatus = 'idle' | 'recording' | 'paused' | 'stopping'
+type NoteType = 'question' | 'friction' | 'decision' | 'observation' | 'action'
+
+const MARKER_TYPES: { type: NoteType; label: string; icon: string; className: string }[] = [
+  { type: 'question', label: 'Question', icon: '❓', className: 'bg-blue-500 hover:bg-blue-600' },
+  { type: 'friction', label: 'Friction', icon: '⚠️', className: 'bg-amber-500 hover:bg-amber-600' },
+  { type: 'decision', label: 'Decision', icon: '✅', className: 'bg-green-500 hover:bg-green-600' },
+  { type: 'observation', label: 'Observation', icon: '👁', className: 'bg-purple-500 hover:bg-purple-600' },
+  { type: 'action', label: 'Action', icon: '➜', className: 'bg-sky-500 hover:bg-sky-600' },
+]
+
+function formatTime(total: number) {
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const seconds = total % 60
+  return [hours, minutes, seconds].map((part) => String(part).padStart(2, '0')).join(':')
+}
+
+function MarkersPanel({ large = false }: { large?: boolean }) {
+  const { addCapture, recentCaptures } = useEngagementSession()
+  const [noteInput, setNoteInput] = useState('')
+  const [markerNotice, setMarkerNotice] = useState('')
+
+  async function handleAddMarker(noteType: NoteType) {
+    try {
+      await addCapture(noteType, noteInput.trim() || '')
+      setNoteInput('')
+      setMarkerNotice(`${noteType} marked`)
+      setTimeout(() => setMarkerNotice(''), 1500)
+    } catch (error) {
+      setMarkerNotice(error instanceof Error ? error.message : 'Failed to save marker')
+      setTimeout(() => setMarkerNotice(''), 3000)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-5 gap-2">
+        {MARKER_TYPES.map((marker) => (
+          <button
+            key={marker.type}
+            onClick={() => void handleAddMarker(marker.type)}
+            className={`px-2 rounded-lg text-white font-medium active:scale-95 transition-transform ${marker.className} ${large ? 'py-4' : 'py-3'}`}
+            title={marker.label}
+          >
+            <span className="block text-base leading-none mb-1">{marker.icon}</span>
+            <span className={`block ${large ? 'text-xs' : 'text-[10px]'}`}>{marker.label}</span>
+          </button>
+        ))}
+      </div>
+      <textarea
+        value={noteInput}
+        onChange={(event) => setNoteInput(event.target.value)}
+        className="w-full min-h-16 px-3 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] text-sm resize-none placeholder:text-[#6B6785] focus:outline-none focus:ring-2 focus:ring-[#290D47]/20"
+        placeholder="Optional: add context to your marker..."
+      />
+      {markerNotice && (
+        <div className="px-3 py-2 rounded-lg bg-[#F0EDF6] text-[#1A0F2E] text-sm">{markerNotice}</div>
+      )}
+      {recentCaptures.length > 0 && (
+        <div className="pt-2 border-t border-[#E8E4EF]">
+          <h4 className="text-xs font-semibold text-[#6B6785] uppercase mb-2">Recent Captures</h4>
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {recentCaptures.map((capture) => {
+              const marker = MARKER_TYPES.find((item) => item.type === capture.type)
+              return (
+                <div key={capture.id} className="p-2 rounded-lg bg-[#F8F7F5]">
+                  <div className="flex items-center gap-2 mb-1">
+                    {marker && (
+                      <span className={`inline-block px-2 py-0.5 rounded text-white text-xs font-medium ${marker.className}`}>
+                        {marker.icon} {capture.type}
+                      </span>
+                    )}
+                    <span className="text-[#6B6785] font-mono text-xs">{formatTime(capture.timestamp)}</span>
+                  </div>
+                  <p className="text-[#1A0F2E] text-sm">{capture.text}</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function AdminRecordPage() {
   const { setActiveSession, setRecordingState } = useEngagementSession()
@@ -30,6 +114,7 @@ export default function AdminRecordPage() {
   const timerRef = useRef<number | null>(null)
   const chunkIndexRef = useRef(0)
   const uploadQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null)
 
   const canStart = useMemo(() => {
     return Boolean(projectId && sessionType && title.trim() && consentGiven && status === 'idle')
@@ -43,7 +128,49 @@ export default function AdminRecordPage() {
         window.clearInterval(timerRef.current)
       }
       streamRef.current?.getTracks().forEach((track) => track.stop())
+      void releaseWakeLock()
     }
+  }, [])
+
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) {
+      return
+    }
+    try {
+      wakeLockRef.current = await navigator.wakeLock.request('screen')
+    } catch {
+      return
+    }
+  }
+
+  async function releaseWakeLock() {
+    try {
+      await wakeLockRef.current?.release()
+    } catch {
+      return
+    }
+    wakeLockRef.current = null
+  }
+
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        const recorder = mediaRecorderRef.current
+        if (recorder && recorder.state === 'recording') {
+          recorder.pause()
+          stopTimer()
+          setStatus('paused')
+          setNotice('Auto-paused: screen or tab hidden.')
+        }
+        return
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        void requestWakeLock()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [])
 
   // Sync elapsed time to provider
@@ -169,6 +296,7 @@ export default function AdminRecordPage() {
       setStatus('recording')
       setElapsedSeconds(0)
       startTimer()
+      void requestWakeLock()
       setNotice('Recording started.')
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Could not start recording')
@@ -277,6 +405,7 @@ export default function AdminRecordPage() {
       streamRef.current?.getTracks().forEach((track) => track.stop())
       streamRef.current = null
       mediaRecorderRef.current = null
+      void releaseWakeLock()
       setStatus('idle')
       setActiveSession(null)
       setRecordingState({ status: 'idle', elapsedSeconds: 0 })
@@ -389,6 +518,13 @@ export default function AdminRecordPage() {
           </button>
         </div>
 
+        {status !== 'idle' && (
+          <div className="hidden md:block border-t border-[#E8E4EF] pt-4">
+            <h3 className="text-sm font-semibold text-[#1A0F2E] mb-3">Markers</h3>
+            <MarkersPanel />
+          </div>
+        )}
+
         {playbackUrls.length > 0 && (
           <div className="space-y-2">
             <audio
@@ -419,6 +555,54 @@ export default function AdminRecordPage() {
           </div>
         )}
       </section>
+
+      {status !== 'idle' && (
+        <div className="fixed inset-0 z-40 flex flex-col bg-[#F8F7F5] px-6 py-8 md:hidden">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-[#1A0F2E]">
+              <span className={`inline-block w-2.5 h-2.5 rounded-full ${status === 'recording' ? 'bg-red-500 animate-pulse' : status === 'paused' ? 'bg-amber-500' : 'bg-gray-400'}`} />
+              <span className="capitalize font-medium">{status}</span>
+            </div>
+            <span className="text-xs text-[#6B6785]">Chunks: {chunkCount}</span>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="min-h-full flex flex-col items-center justify-center gap-8 py-6">
+              <div className="text-6xl font-mono text-[#1A0F2E] tabular-nums">{formatTime(elapsedSeconds)}</div>
+              <div className="w-full">
+                <h3 className="text-sm font-semibold text-[#1A0F2E] mb-3">Markers</h3>
+                <MarkersPanel large />
+              </div>
+            </div>
+          </div>
+
+          <div className="w-full space-y-3 pb-2">
+            {status === 'recording' && (
+              <button
+                onClick={pauseRecording}
+                className="w-full py-4 rounded-2xl bg-amber-500 text-white font-semibold"
+              >
+                Pause
+              </button>
+            )}
+            {status === 'paused' && (
+              <button
+                onClick={resumeRecording}
+                className="w-full py-4 rounded-2xl bg-blue-500 text-white font-semibold"
+              >
+                Resume
+              </button>
+            )}
+            <button
+              onClick={stopRecording}
+              disabled={status === 'stopping'}
+              className="w-full py-5 rounded-2xl bg-rose-600 text-white text-lg font-bold disabled:opacity-40"
+            >
+              Stop
+            </button>
+          </div>
+        </div>
+      )}
 
       {notice && (
         <div className="bg-white border border-[#290D47]/15 rounded-lg px-4 py-3 text-[#1A0F2E] shadow-sm">

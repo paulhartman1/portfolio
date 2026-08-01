@@ -34,12 +34,18 @@ export default function LoginForm({ brand = 'loveondev' }: { brand?: LoginBrand 
   }, [])
 
   // Authenticated visitors: review widget return, else go to dashboard.
+  // getUser() validates server-side; a dead/revoked session is cleared locally
+  // (scope: 'local') so a stale cookie cannot trap the page in a redirect loop.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const reviewReturn = params.get('review_return')
 
-    supabaseBrowser.auth.getSession().then(({ data }) => {
-      if (!data.session) return
+    supabaseBrowser.auth.getUser().then(({ data, error }) => {
+      if (error) {
+        void supabaseBrowser.auth.signOut({ scope: 'local' })
+        return
+      }
+      if (!data.user) return
       if (reviewReturn && isLoveondevSubdomain(reviewReturn)) {
         const separator = reviewReturn.includes('?') ? '&' : '?'
         window.location.href = `${reviewReturn}${separator}review_authed=1`
