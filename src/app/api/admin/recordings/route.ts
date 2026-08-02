@@ -9,19 +9,61 @@ export async function GET(request: NextRequest) {
   }
 
   const projectId = request.nextUrl.searchParams.get('project_id')
+  const clientId = request.nextUrl.searchParams.get('client_id')
 
-  if (!projectId) {
+  if (!projectId && !clientId) {
     return NextResponse.json(
-      { error: 'project_id query parameter is required' },
+      { error: 'project_id or client_id query parameter is required' },
       { status: 400 }
     )
   }
 
-  const { data: recordings, error: recordingsError } = await admin.supabase
+  // Resolve the project scope. When querying by client, expand through the
+  // project_clients junction table so we pick up every project the client is
+  // assigned to, and remember each project's name for display.
+  let projectIds: string[]
+  let projectNameById = new Map<string, string>()
+
+  if (clientId) {
+    const { data: projectClients, error: projectClientsError } = await admin.supabase
+      .from('project_clients')
+      .select('project_id')
+      .eq('client_id', clientId)
+
+    if (projectClientsError) {
+      return NextResponse.json({ error: projectClientsError.message }, { status: 500 })
+    }
+
+    projectIds = (projectClients || []).map((row) => row.project_id)
+
+    if (projectIds.length === 0) {
+      return NextResponse.json({ recordings: [] })
+    }
+
+    const { data: projects, error: projectsError } = await admin.supabase
+      .from('projects')
+      .select('id, name')
+      .in('id', projectIds)
+
+    if (projectsError) {
+      return NextResponse.json({ error: projectsError.message }, { status: 500 })
+    }
+
+    projectNameById = new Map((projects || []).map((project) => [project.id, project.name]))
+  } else {
+    projectIds = [projectId as string]
+  }
+
+  const recordingsQuery = admin.supabase
     .from('engagement_recordings')
     .select('*')
-    .eq('project_id', projectId)
     .order('started_at', { ascending: false })
+
+  const query = projectIds.length === 1
+    ? recordingsQuery.eq('project_id', projectIds[0])
+    : recordingsQuery.in('project_id', projectIds)
+
+  const { data: recordings, error: recordingsError } = await query
 
   if (recordingsError) {
     return NextResponse.json({ error: recordingsError.message }, { status: 500 })
@@ -54,6 +96,7 @@ export async function GET(request: NextRequest) {
 
   const recordingsWithMarkers = list.map((recording) => ({
     ...recording,
+    project_name: projectNameById.get(recording.project_id) || null,
     markers: markersByRecording.get(recording.id) || [],
   }))
 

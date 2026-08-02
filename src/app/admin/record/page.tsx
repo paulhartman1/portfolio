@@ -130,6 +130,7 @@ export default function AdminRecordPage() {
       streamRef.current?.getTracks().forEach((track) => track.stop())
       void releaseWakeLock()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function requestWakeLock() {
@@ -195,7 +196,12 @@ export default function AdminRecordPage() {
     }
 
     setProjects(data || [])
-    if (data && data.length > 0) {
+
+    const requestedId = new URLSearchParams(window.location.search).get('project_id')
+    const requested = (data || []).find((project) => project.id === requestedId)
+    if (requested) {
+      setProjectId(requested.id)
+    } else if (data && data.length > 0 && !projectId) {
       setProjectId(data[0].id)
     }
   }
@@ -557,8 +563,8 @@ export default function AdminRecordPage() {
       </section>
 
       {status !== 'idle' && (
-        <div className="fixed inset-0 z-40 flex flex-col bg-[#F8F7F5] px-6 py-8 md:hidden">
-          <div className="flex items-center justify-between">
+        <div className="fixed inset-0 z-40 flex flex-col bg-[#F8F7F5] md:hidden min-h-[100dvh] overflow-hidden">
+          <div className="flex items-center justify-between px-6 pt-[max(1.75rem,env(safe-area-inset-top))]">
             <div className="flex items-center gap-2 text-sm text-[#1A0F2E]">
               <span className={`inline-block w-2.5 h-2.5 rounded-full ${status === 'recording' ? 'bg-red-500 animate-pulse' : status === 'paused' ? 'bg-amber-500' : 'bg-gray-400'}`} />
               <span className="capitalize font-medium">{status}</span>
@@ -566,7 +572,7 @@ export default function AdminRecordPage() {
             <span className="text-xs text-[#6B6785]">Chunks: {chunkCount}</span>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto pl-6 pr-6">
             <div className="min-h-full flex flex-col items-center justify-center gap-8 py-6">
               <div className="text-6xl font-mono text-[#1A0F2E] tabular-nums">{formatTime(elapsedSeconds)}</div>
               <div className="w-full">
@@ -576,7 +582,7 @@ export default function AdminRecordPage() {
             </div>
           </div>
 
-          <div className="w-full space-y-3 pb-2">
+          <div className="w-full space-y-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-6 pr-6">
             {status === 'recording' && (
               <button
                 onClick={pauseRecording}

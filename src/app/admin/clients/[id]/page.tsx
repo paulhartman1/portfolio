@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabaseBrowser } from '@/utils/supabase/client'
+import EngagementRecordings from '@/components/EngagementRecordings'
 
 type Profile = {
   id: string
@@ -382,6 +383,11 @@ export default function ClientDetailPage() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Engagement Recordings Section */}
+      <div className="mb-6">
+        <EngagementRecordings clientId={clientId} />
       </div>
 
       {/* Messages Section */}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 
 type RecordingStatus = 'recording' | 'paused' | 'finalized' | 'failed'
@@ -16,6 +16,7 @@ type Marker = {
 type Recording = {
   id: string
   project_id: string
+  project_name: string | null
   title: string
   session_type: string
   status: RecordingStatus
@@ -67,7 +68,12 @@ function formatDate(value: string) {
   return new Date(value).toLocaleString()
 }
 
-export default function EngagementRecordings({ projectId }: { projectId: string }) {
+type EngagementRecordingsProps = {
+  projectId?: string
+  clientId?: string
+}
+
+export default function EngagementRecordings({ projectId, clientId }: EngagementRecordingsProps) {
   const [recordings, setRecordings] = useState<Recording[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -75,17 +81,22 @@ export default function EngagementRecordings({ projectId }: { projectId: string 
   const [playback, setPlayback] = useState<Record<string, Playback>>({})
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
+  const scopeKey = useMemo(() => (clientId ? `client:${clientId}` : `project:${projectId}`), [clientId, projectId])
+
   useEffect(() => {
     void loadRecordings()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId])
+  }, [scopeKey])
 
   async function loadRecordings() {
     setLoading(true)
     setError('')
 
     try {
-      const response = await fetch(`/api/admin/recordings?project_id=${encodeURIComponent(projectId)}`)
+      const param = clientId
+        ? `client_id=${encodeURIComponent(clientId)}`
+        : `project_id=${encodeURIComponent(projectId as string)}`
+      const response = await fetch(`/api/admin/recordings?${param}`)
       if (!response.ok) {
         const body = await response.json()
         throw new Error(body.error || 'Failed to load recordings')
@@ -159,7 +170,7 @@ export default function EngagementRecordings({ projectId }: { projectId: string 
             </span>
           )}
           <Link
-            href="/admin/record"
+            href={projectId ? `/admin/record?project_id=${projectId}` : '/admin/record'}
             className="px-4 py-2 rounded-lg bg-[#00F5E4] text-[#1A0F2E] font-semibold hover:opacity-90 text-sm"
           >
             + New Recording
@@ -193,6 +204,7 @@ export default function EngagementRecordings({ projectId }: { projectId: string 
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#6B6785]">
+                      {recording.project_name && <span className="font-medium">{recording.project_name}</span>}
                       <span>{formatDate(recording.started_at)}</span>
                       <span>Duration: {formatDuration(recording.duration_seconds)}</span>
                       <span>Chunks: {recording.total_chunks}</span>
