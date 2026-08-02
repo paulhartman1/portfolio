@@ -84,11 +84,23 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
   const scopeKey = useMemo(() => (clientId ? `client:${clientId}` : `project:${projectId}`), [clientId, projectId])
 
   useEffect(() => {
+    // Don't load if neither projectId nor clientId is available
+    if (!projectId && !clientId) {
+      setLoading(false)
+      return
+    }
     void loadRecordings()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopeKey])
 
   async function loadRecordings() {
+    // Guard against missing IDs
+    if (!projectId && !clientId) {
+      setLoading(false)
+      setError('No project or client ID provided')
+      return
+    }
+
     setLoading(true)
     setError('')
 
