@@ -84,18 +84,23 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
   const scopeKey = useMemo(() => (clientId ? `client:${clientId}` : `project:${projectId}`), [clientId, projectId])
 
   useEffect(() => {
+    console.log('[EngagementRecordings] useEffect fired', { projectId, clientId, scopeKey })
     // Don't load if neither projectId nor clientId is available
     if (!projectId && !clientId) {
+      console.log('[EngagementRecordings] No projectId or clientId, skipping load')
       setLoading(false)
       return
     }
+    console.log('[EngagementRecordings] Calling loadRecordings...')
     void loadRecordings()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopeKey])
 
   async function loadRecordings() {
+    console.log('[EngagementRecordings] loadRecordings called', { projectId, clientId })
     // Guard against missing IDs
     if (!projectId && !clientId) {
+      console.log('[EngagementRecordings] Missing IDs in loadRecordings')
       setLoading(false)
       setError('No project or client ID provided')
       return
@@ -108,14 +113,20 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
       const param = clientId
         ? `client_id=${encodeURIComponent(clientId)}`
         : `project_id=${encodeURIComponent(projectId as string)}`
-      const response = await fetch(`/api/admin/recordings?${param}`)
+      const url = `/api/admin/recordings?${param}`
+      console.log('[EngagementRecordings] Fetching:', url)
+      const response = await fetch(url)
+      console.log('[EngagementRecordings] Response:', response.status, response.ok)
       if (!response.ok) {
         const body = await response.json()
+        console.log('[EngagementRecordings] Error response:', body)
         throw new Error(body.error || 'Failed to load recordings')
       }
       const payload = await response.json()
+      console.log('[EngagementRecordings] Success:', payload)
       setRecordings(payload.recordings || [])
     } catch (err) {
+      console.error('[EngagementRecordings] Error:', err)
       setError(err instanceof Error ? err.message : 'Failed to load recordings')
     } finally {
       setLoading(false)
