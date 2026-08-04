@@ -166,6 +166,9 @@ describe('GET /api/admin/recordings', () => {
           }),
         }
       }
+      if (table === 'engagement_transcripts') {
+        return { select: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
+      }
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -265,6 +268,9 @@ describe('GET /api/admin/recordings', () => {
             in: vi.fn().mockResolvedValue({ data: projects, error: null }),
           }),
         }
+      }
+      if (table === 'engagement_transcripts') {
+        return { select: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue({ data: [], error: null }) }) }
       }
       throw new Error(`Unexpected table: ${table}`)
     })

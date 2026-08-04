@@ -87,6 +87,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: markersError.message }, { status: 500 })
   }
 
+  const { data: transcripts, error: transcriptsError } = await admin.supabase
+    .from('engagement_transcripts')
+    .select('id, recording_id, full_text, utterances, speaker_count, duration_seconds, status, error_details, completed_at, processing_mode, total_parts, processed_parts')
+    .in('recording_id', recordingIds)
+
+  if (transcriptsError) {
+    return NextResponse.json({ error: transcriptsError.message }, { status: 500 })
+  }
+
+  const transcriptIds = (transcripts || []).map((transcript) => transcript.id)
+  const { data: clusters, error: clustersError } = transcriptIds.length
+    ? await admin.supabase
+      .from('engagement_transcript_speaker_clusters')
+      .select('id, transcript_id, provider_speaker_key, display_label, utterance_count, total_speaking_duration, engagement_speaker_identity_assignments(id, person_id, assignment_method, confirmation_state, assigned_at, persons(id, display_name, company, title))')
+      .in('transcript_id', transcriptIds)
+    : { data: [], error: null }
+  if (clustersError) return NextResponse.json({ error: clustersError.message }, { status: 500 })
+
   const markersByRecording = new Map<string, typeof markers>()
   for (const marker of markers || []) {
     const group = markersByRecording.get(marker.recording_id) || []
@@ -94,10 +112,19 @@ export async function GET(request: NextRequest) {
     markersByRecording.set(marker.recording_id, group)
   }
 
+  const clustersByTranscript = new Map<string, typeof clusters>()
+  for (const cluster of clusters || []) {
+    const group = clustersByTranscript.get(cluster.transcript_id) || []
+    group.push(cluster)
+    clustersByTranscript.set(cluster.transcript_id, group)
+  }
+  const transcriptByRecording = new Map((transcripts || []).map((transcript) => [transcript.recording_id, { ...transcript, clusters: clustersByTranscript.get(transcript.id) || [] }]))
+
   const recordingsWithMarkers = list.map((recording) => ({
     ...recording,
     project_name: projectNameById.get(recording.project_id) || null,
     markers: markersByRecording.get(recording.id) || [],
+    transcript: transcriptByRecording.get(recording.id) || null,
   }))
 
   return NextResponse.json({ recordings: recordingsWithMarkers })

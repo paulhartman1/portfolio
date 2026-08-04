@@ -27,6 +27,37 @@ type Recording = {
   total_chunks: number
   final_storage_path: string | null
   markers: Marker[]
+  transcript: Transcript | null
+}
+
+type Utterance = {
+  start: number
+  end: number
+  speaker: number
+  transcript: string
+}
+
+type Transcript = {
+  id: string
+  status: 'processing' | 'complete' | 'failed'
+  full_text: string
+  utterances: Utterance[]
+  speaker_count: number | null
+  error_details: string | null
+  processing_mode: 'assembled' | 'chunked'
+  total_parts: number | null
+  processed_parts: number
+  clusters: SpeakerCluster[]
+}
+
+type SpeakerPerson = { id: string; display_name: string; company: string | null; title: string | null }
+type SpeakerCluster = {
+  id: string
+  provider_speaker_key: string
+  display_label: string
+  utterance_count: number
+  total_speaking_duration: number
+  engagement_speaker_identity_assignments: Array<{ person_id: string; persons: SpeakerPerson }>
 }
 
 type Playback = {
@@ -80,6 +111,9 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
   const [expandedMarkers, setExpandedMarkers] = useState<string | null>(null)
   const [playback, setPlayback] = useState<Record<string, Playback>>({})
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [transcribingId, setTranscribingId] = useState<string | null>(null)
+  const [expandedTranscript, setExpandedTranscript] = useState<string | null>(null)
+  const [projectPeople, setProjectPeople] = useState<Record<string, SpeakerPerson[]>>({})
 
   const scopeKey = useMemo(() => (clientId ? `client:${clientId}` : `project:${projectId}`), [clientId, projectId])
 
@@ -179,6 +213,38 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
     }
   }
 
+  async function transcribeRecording(recordingId: string) {
+    setTranscribingId(recordingId)
+    try {
+      const response = await fetch(`/api/admin/recordings/${recordingId}/transcribe`, { method: 'POST' })
+      const body = await response.json()
+      if (!response.ok || !body.ok) throw new Error(body.error || 'Transcription failed')
+      await loadRecordings()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Transcription failed')
+    } finally {
+      setTranscribingId(null)
+    }
+  }
+
+  async function assignSpeaker(recordingId: string, transcriptId: string, clusterId: string, personId: string) {
+    if (!personId) {
+      await fetch(`/api/admin/transcripts/${transcriptId}/speakers/${clusterId}`, { method: 'DELETE' })
+    } else {
+      await fetch(`/api/admin/transcripts/${transcriptId}/speakers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cluster_id: clusterId, person_id: personId }) })
+    }
+    await loadRecordings()
+  }
+
+  async function loadProjectPeople(projectId: string) {
+    if (projectPeople[projectId]) return
+    const response = await fetch(`/api/admin/projects/${projectId}/people`)
+    if (response.ok) {
+      const body = await response.json()
+      setProjectPeople((current) => ({ ...current, [projectId]: body.people || [] }))
+    }
+  }
+
   return (
     <section className="bg-white border border-[#290D47]/15 rounded-2xl p-6 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -244,6 +310,13 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
                       </button>
                     )}
                     <button
+                      onClick={() => void transcribeRecording(recording.id)}
+                      disabled={transcribingId === recording.id || !recording.final_storage_path && recording.total_chunks === 0}
+                      className="px-3 py-1.5 rounded-lg bg-[#00F5E4] text-[#1A0F2E] hover:opacity-90 text-sm font-semibold disabled:opacity-50"
+                    >
+                      {transcribingId === recording.id ? 'Transcribing...' : recording.transcript?.status === 'complete' ? 'Retranscribe' : recording.transcript?.status === 'failed' ? 'Retry transcription' : 'Transcribe'}
+                    </button>
+                    <button
                       onClick={() => void deleteRecording(recording.id)}
                       disabled={deletingId === recording.id}
                       className="px-3 py-1.5 rounded-lg bg-red-100 text-red-800 hover:bg-red-200 text-sm font-semibold disabled:opacity-50"
@@ -251,6 +324,53 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
                       {deletingId === recording.id ? 'Deleting...' : 'Delete'}
                     </button>
                   </div>
+                </div>
+
+                <div className="mt-3 border-t border-[#E8E4EF] pt-3">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className={`px-2 py-0.5 rounded border font-semibold ${recording.transcript?.status === 'complete' ? 'bg-green-100 text-green-700 border-green-200' : recording.transcript?.status === 'failed' ? 'bg-red-100 text-red-700 border-red-200' : recording.transcript?.status === 'processing' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                      {recording.transcript?.status === 'complete' ? 'Transcript ready' : recording.transcript?.status === 'processing' ? recording.transcript.processing_mode === 'chunked' && recording.transcript.total_parts ? `Transcribing ${recording.transcript.processed_parts} / ${recording.transcript.total_parts} chunks` : 'Transcribing' : recording.transcript?.status === 'failed' ? 'Transcription failed' : 'Not transcribed'}
+                    </span>
+                    {recording.transcript?.status === 'complete' && (
+                      <button onClick={() => { const next = expandedTranscript === recording.id ? null : recording.id; setExpandedTranscript(next); if (next) void loadProjectPeople(recording.project_id) }} className="font-semibold text-[#290D47]">
+                        {expandedTranscript === recording.id ? 'Hide transcript' : 'Show transcript'}
+                      </button>
+                    )}
+                  </div>
+                  {recording.transcript?.status === 'failed' && recording.transcript.error_details && (
+                    <p className="mt-2 text-xs text-red-700">{recording.transcript.error_details}</p>
+                  )}
+                  {expandedTranscript === recording.id && recording.transcript?.status === 'complete' && (
+                    <div className="mt-3 space-y-3">
+                      {recording.transcript.clusters.length > 0 && (
+                        <div className="rounded-lg border border-[#E8E4EF] bg-white p-3 space-y-2">
+                          <h4 className="text-sm font-semibold text-[#1A0F2E]">Speakers</h4>
+                          {recording.transcript.clusters.map((cluster) => {
+                            const assignment = cluster.engagement_speaker_identity_assignments?.[0]
+                            return <label key={cluster.id} className="flex flex-wrap items-center gap-2 text-sm">
+                              <span className="font-semibold text-[#1A0F2E]">{cluster.display_label}</span>
+                              <span className="text-xs text-[#6B6785]">{cluster.utterance_count} utterances</span>
+                              <select value={assignment?.person_id || ''} onChange={(event) => void assignSpeaker(recording.id, recording.transcript!.id, cluster.id, event.target.value)} className="rounded border border-[#E8E4EF] bg-white px-2 py-1 text-sm text-[#1A0F2E]">
+                                <option value="">Leave unidentified</option>
+                                {(projectPeople[recording.project_id] || []).map((person) => <option key={person.id} value={person.id}>{person.display_name}{person.title ? ` — ${person.title}` : person.company ? ` — ${person.company}` : ''}</option>)}
+                              </select>
+                            </label>
+                          })}
+                        </div>
+                      )}
+                      <p className="whitespace-pre-wrap text-sm text-[#1A0F2E]">{recording.transcript!.full_text || 'No transcript text returned.'}</p>
+                      {recording.transcript!.utterances.length > 0 && (
+                        <div className="space-y-2 border-t border-[#E8E4EF] pt-3">
+                          {recording.transcript!.utterances.map((utterance, index) => (
+                            <div key={`${recording.id}-utterance-${index}`} className="flex gap-3 text-sm">
+                              <span className="shrink-0 font-mono text-xs text-[#6B6785]">{formatTimestamp(Math.floor(utterance.start))}</span>
+                              <p className="text-[#1A0F2E]"><span className="font-semibold">{recording.transcript!.clusters.find((cluster) => cluster.provider_speaker_key === `speaker-${utterance.speaker}`)?.engagement_speaker_identity_assignments?.[0]?.persons?.display_name || `Speaker ${utterance.speaker + 1}`} <span className="text-xs font-normal text-[#6B6785]">(Speaker {utterance.speaker + 1})</span>:</span> {utterance.transcript}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {activePlayback && activePlayback.urls.length > 0 && (

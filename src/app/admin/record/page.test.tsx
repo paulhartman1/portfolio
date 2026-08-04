@@ -35,7 +35,7 @@ describe('AdminRecordPage', () => {
     return import('./page').then(({ default: AdminRecordPage }) => {
       render(<AdminRecordPage />)
 
-      expect(screen.getByRole('heading', { name: 'Recording page test placeholder' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Engagement Recorder' })).toBeInTheDocument()
     })
   })
 })
