@@ -26,12 +26,20 @@ function WelcomeContent() {
     let isProcessing = false;
     
     async function handleInviteToken() {
-      // Check for hash fragment (implicit flow: #access_token=...&type=invite)
+      // Check for hash fragment (implicit flow: #access_token=...&type=invite or type=recovery)
       if (typeof window !== 'undefined' && window.location.hash) {
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
         const type = hashParams.get('type');
+        
+        // Password reset flow - redirect to update-password page
+        if (accessToken && type === 'recovery' && !isProcessing) {
+          isProcessing = true;
+          console.log('[Welcome] Password reset flow detected, redirecting...');
+          router.push('/auth/update-password');
+          return;
+        }
         
         if (accessToken && type === 'invite' && !isProcessing) {
           isProcessing = true;
@@ -180,7 +188,7 @@ function WelcomeContent() {
       subscription.unsubscribe();
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   const handleContinue = async () => {
     // Mark that user has seen the welcome page
