@@ -87,7 +87,13 @@ export async function GET(req: NextRequest) {
   
   console.log('[Auth Callback] Profile:', profile, 'Error:', profileError)
 
-  // Prioritize explicit safe next redirect (used by password reset flow)
+  // Password reset flow - always redirect to update-password page
+  if (type === 'recovery') {
+    console.log('[Auth Callback] Password reset flow, redirecting to update-password')
+    return NextResponse.redirect(new URL('/auth/update-password', req.url))
+  }
+
+  // Prioritize explicit safe next redirect (used by other flows)
   if (safeNext) {
     return NextResponse.redirect(new URL(safeNext, req.url))
   }
