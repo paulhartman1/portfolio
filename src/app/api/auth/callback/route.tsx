@@ -1,17 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import type { EmailOtpType } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { authCookieOptions } from '@/utils/supabase/cookie-options'
+
+const EMAIL_OTP_TYPES: EmailOtpType[] = [
+  'invite',
+  'magiclink',
+  'recovery',
+  'signup',
+  'email',
+  'email_change',
+]
+
+function asEmailOtpType(value: string | null): EmailOtpType | null {
+  return EMAIL_OTP_TYPES.includes(value as EmailOtpType) ? (value as EmailOtpType) : null
+}
 
 export async function GET(req: NextRequest) {
   console.log('[Auth Callback] Request URL:', req.url)
   const { searchParams } = new URL(req.url)
   const code = searchParams.get('code')
   const tokenHash = searchParams.get('token_hash')
-  const type = searchParams.get('type')
+  const rawType = searchParams.get('type')
+  const type = asEmailOtpType(rawType)
   const requestedNext = searchParams.get('next')
   const safeNext = requestedNext?.startsWith('/') ? requestedNext : null
-  console.log('[Auth Callback] Code:', code ? 'present' : 'missing', 'TokenHash:', tokenHash ? 'present' : 'missing', 'Type:', type)
+  console.log('[Auth Callback] Code:', code ? 'present' : 'missing', 'TokenHash:', tokenHash ? 'present' : 'missing', 'Type:', rawType)
 
   if (!code && !tokenHash) {
     console.error('[Auth Callback] No code or token_hash in URL')
@@ -36,37 +51,48 @@ export async function GET(req: NextRequest) {
     }
   )
 
-  // Handle PKCE flow (code) or token hash flow
-  if (code) {
-    console.log('[Auth Callback] Exchanging code for session...')
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-    if (error) {
-      console.error('[Auth Callback] Exchange failed:', error)
-      return NextResponse.redirect(new URL('/auth/login?error=auth_failed', req.url))
-    }
-    if (!data.session) {
-      console.error('[Auth Callback] No session returned from exchangeCodeForSession')
-      return NextResponse.redirect(new URL('/auth/login?error=no_session', req.url))
-    }
-    console.log('[Auth Callback] Session exchange successful, user:', data.session.user.email)
-  } else if (tokenHash && type) {
-    console.log('[Auth Callback] Verifying token hash...')
-    const { data, error } = await supabase.auth.verifyOtp({
-      token_hash: tokenHash,
-      type: type as 'invite' | 'magiclink' | 'recovery' | 'signup' | 'email_change',
-    })
-    if (error) {
-      console.error('[Auth Callback] Token verification failed:', error)
-      return NextResponse.redirect(new URL('/auth/login?error=auth_failed', req.url))
-    }
-    if (!data.session) {
-      console.error('[Auth Callback] No session returned from verifyOtp')
-      return NextResponse.redirect(new URL('/auth/login?error=no_session', req.url))
-    }
-    console.log('[Auth Callback] Token verification successful, session established')
+  // Drop any stale auth cookie before redeeming the link. Otherwise the client
+  // tries to refresh a dead token first and fails with refresh_token_not_found,
+  // which buries the real error for this request.
+  try {
+    await supabase.auth.signOut({ scope: 'local' })
+  } catch (err) {
+    console.warn('[Auth Callback] Could not clear stale session:', err)
   }
 
-  // Get user profile to determine redirect
+  // token_hash is the primary path. It carries no browser state, so it works
+  // for emails sent from the Supabase dashboard and for links opened on a
+  // different device or browser than the one that requested them.
+  if (tokenHash && type) {
+    console.log('[Auth Callback] Verifying token hash, type:', type)
+    const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
+    if (error || !data.session) {
+      console.error('[Auth Callback] Token verification failed:', error)
+      return NextResponse.redirect(new URL('/auth/login?error=link_expired', req.url))
+    }
+    console.log('[Auth Callback] Token verification successful, user:', data.session.user.email)
+  } else if (tokenHash && !type) {
+    console.error('[Auth Callback] token_hash present but type missing/unsupported:', rawType)
+    return NextResponse.redirect(new URL('/auth/login?error=link_invalid', req.url))
+  } else if (code) {
+    // PKCE fallback, used by OAuth and by email links opened in the same
+    // browser that requested them. Requires the code verifier cookie.
+    console.log('[Auth Callback] Exchanging code for session...')
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    if (error || !data.session) {
+      console.error('[Auth Callback] Exchange failed:', error)
+      return NextResponse.redirect(new URL('/auth/login?error=link_expired', req.url))
+    }
+    console.log('[Auth Callback] Session exchange successful, user:', data.session.user.email)
+  }
+
+  // Password reset must land on the update-password form before anything else,
+  // so the recovery session is not spent on a dashboard redirect.
+  if (type === 'recovery') {
+    console.log('[Auth Callback] Recovery flow, redirecting to update-password')
+    return NextResponse.redirect(new URL(safeNext ?? '/auth/update-password', req.url))
+  }
+
   console.log('[Auth Callback] Getting user...')
   const { data: { user }, error: getUserError } = await supabase.auth.getUser()
   if (getUserError) {
@@ -75,7 +101,7 @@ export async function GET(req: NextRequest) {
   console.log('[Auth Callback] User:', user?.email)
   if (!user) {
     console.error('[Auth Callback] No user found')
-    return NextResponse.redirect(new URL('/auth/login', req.url))
+    return NextResponse.redirect(new URL('/auth/login?error=no_session', req.url))
   }
 
   console.log('[Auth Callback] Fetching profile for user:', user.id)
@@ -86,12 +112,6 @@ export async function GET(req: NextRequest) {
     .single()
   
   console.log('[Auth Callback] Profile:', profile, 'Error:', profileError)
-
-  // Password reset flow - always redirect to update-password page
-  if (type === 'recovery') {
-    console.log('[Auth Callback] Password reset flow detected, redirecting to update-password')
-    return NextResponse.redirect(new URL('/auth/update-password', req.url))
-  }
 
   // Prioritize explicit safe next redirect (used by other flows)
   if (safeNext) {

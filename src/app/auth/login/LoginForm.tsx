@@ -16,6 +16,15 @@ function isLoveondevSubdomain(url: string): boolean {
   }
 }
 
+// Error codes set by /api/auth/callback when an email link cannot be redeemed.
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  link_expired: 'That link has expired or was already used. Request a new one below.',
+  link_invalid: 'That link is not valid. Request a new one below.',
+  no_code: 'That link is missing its sign-in token. Request a new one below.',
+  no_session: 'We could not complete sign in. Request a new link below.',
+  auth_failed: 'Sign in failed. Request a new link below.',
+}
+
 type LoginBrand = 'loveondev' | 'cgt'
 
 export default function LoginForm({ brand = 'loveondev' }: { brand?: LoginBrand }) {
@@ -31,6 +40,11 @@ export default function LoginForm({ brand = 'loveondev' }: { brand?: LoginBrand 
 
   useEffect(() => {
     setIsLocalhost(window.location.hostname === 'localhost')
+
+    const errorCode = new URLSearchParams(window.location.search).get('error')
+    if (errorCode) {
+      setErrorMsg(AUTH_ERROR_MESSAGES[errorCode] ?? 'Sign in failed. Please try again.')
+    }
   }, [])
 
   // Authenticated visitors: review widget return, else go to dashboard.
@@ -160,7 +174,9 @@ export default function LoginForm({ brand = 'loveondev' }: { brand?: LoginBrand 
     setErrorMsg(null)
 
     try {
-      const redirectTo = `${window.location.origin}/api/auth/callback?next=/auth/update-password`
+      // The recovery email template and /api/auth/callback decide where the
+      // user lands, so no `next` param is needed here.
+      const redirectTo = `${window.location.origin}/api/auth/callback`
       const { error } = await supabaseBrowser.auth.resetPasswordForEmail(email, {
         redirectTo,
       })

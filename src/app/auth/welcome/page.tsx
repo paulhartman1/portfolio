@@ -20,31 +20,6 @@ function WelcomeContent() {
   const [userProfile, setUserProfile] = useState<{ first_name: string | null; is_admin: boolean } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Check for recovery flow IMMEDIATELY before any Supabase operations
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.location.hash) {
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const type = hashParams.get('type');
-      
-      if (type === 'recovery') {
-        console.log('[Welcome] Recovery flow detected, redirecting immediately...');
-        // Store tokens in sessionStorage for update-password page to use
-        const accessToken = hashParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token');
-        if (accessToken) {
-          sessionStorage.setItem('recovery_access_token', accessToken);
-        }
-        if (refreshToken) {
-          sessionStorage.setItem('recovery_refresh_token', refreshToken);
-        }
-        // Clear hash and redirect
-        window.history.replaceState(null, '', window.location.pathname);
-        router.push('/auth/update-password');
-        return;
-      }
-    }
-  }, [router]);
-
   useEffect(() => {
     const supabase = supabaseBrowser;
     let timeoutId: NodeJS.Timeout;
@@ -58,7 +33,6 @@ function WelcomeContent() {
         const refreshToken = hashParams.get('refresh_token');
         const type = hashParams.get('type');
         
-        // Only handle invite type here (recovery is handled above)
         if (accessToken && type === 'invite' && !isProcessing) {
           isProcessing = true;
           console.log('[Welcome] Processing implicit flow invite token');
@@ -206,7 +180,7 @@ function WelcomeContent() {
       subscription.unsubscribe();
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [searchParams, router]);
+  }, [searchParams]);
 
   const handleContinue = async () => {
     // Mark that user has seen the welcome page
