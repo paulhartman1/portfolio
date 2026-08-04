@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
   if (getUserError) {
     console.error('[Auth Callback] Error getting user:', getUserError)
   }
-  console.log('[Auth Callback] User:', user?.email, 'Recovery mode:', user?.recovery)
+  console.log('[Auth Callback] User:', user?.email)
   if (!user) {
     console.error('[Auth Callback] No user found')
     return NextResponse.redirect(new URL('/auth/login', req.url))
@@ -87,9 +87,8 @@ export async function GET(req: NextRequest) {
   
   console.log('[Auth Callback] Profile:', profile, 'Error:', profileError)
 
-  // Password reset flow - detect via type parameter or user recovery flag
-  // When a password reset link is clicked, the user is in recovery mode
-  if (type === 'recovery' || user.recovery) {
+  // Password reset flow - always redirect to update-password page
+  if (type === 'recovery') {
     console.log('[Auth Callback] Password reset flow detected, redirecting to update-password')
     return NextResponse.redirect(new URL('/auth/update-password', req.url))
   }
