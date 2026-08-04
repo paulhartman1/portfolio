@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# opencode local auth (contains access tokens)
+.opencode/supabase-auth.json
