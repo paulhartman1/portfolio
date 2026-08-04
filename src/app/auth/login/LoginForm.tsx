@@ -23,7 +23,16 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   no_code: 'That link is missing its sign-in token. Request a new one below.',
   no_session: 'We could not complete sign in. Request a new link below.',
   auth_failed: 'Sign in failed. Request a new link below.',
+  rate_limited: 'Too many sign-in attempts right now. Wait a minute and try your link again.',
 }
+
+// A stale cookie can leave the browser client believing there is a session
+// while the server disagrees. Login then forwards to /dashboard, the server
+// bounces back here, and each round trip fires another token refresh. Two
+// forwards in quick succession means we are in that loop, so drop the dead
+// session locally instead of forwarding again.
+const AUTO_FORWARD_KEY = 'loveondev_auth_auto_forward_at'
+const AUTO_FORWARD_WINDOW_MS = 5000
 
 type LoginBrand = 'loveondev' | 'cgt'
 
@@ -65,6 +74,16 @@ export default function LoginForm({ brand = 'loveondev' }: { brand?: LoginBrand 
         window.location.href = `${reviewReturn}${separator}review_authed=1`
         return
       }
+
+      const lastForward = Number(sessionStorage.getItem(AUTO_FORWARD_KEY) || 0)
+      if (Date.now() - lastForward < AUTO_FORWARD_WINDOW_MS) {
+        sessionStorage.removeItem(AUTO_FORWARD_KEY)
+        void supabaseBrowser.auth.signOut({ scope: 'local' })
+        setErrorMsg('We could not verify your session. Please sign in again.')
+        return
+      }
+
+      sessionStorage.setItem(AUTO_FORWARD_KEY, String(Date.now()))
       window.location.href = '/dashboard'
     })
   }, [])

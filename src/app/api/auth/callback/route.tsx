@@ -17,6 +17,15 @@ function asEmailOtpType(value: string | null): EmailOtpType | null {
   return EMAIL_OTP_TYPES.includes(value as EmailOtpType) ? (value as EmailOtpType) : null
 }
 
+// A 429 from the auth server is not an expired link. Reporting it as one sends
+// people off to request another email that will fail the same way.
+function failureCode(error: { status?: number; code?: string } | null): string {
+  if (error?.status === 429 || error?.code === 'over_request_rate_limit') {
+    return 'rate_limited'
+  }
+  return 'link_expired'
+}
+
 export async function GET(req: NextRequest) {
   console.log('[Auth Callback] Request URL:', req.url)
   const { searchParams } = new URL(req.url)
@@ -68,7 +77,8 @@ export async function GET(req: NextRequest) {
     const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
     if (error || !data.session) {
       console.error('[Auth Callback] Token verification failed:', error)
-      return NextResponse.redirect(new URL('/auth/login?error=link_expired', req.url))
+      const code = failureCode(error)
+      return NextResponse.redirect(new URL(`/auth/login?error=${code}`, req.url))
     }
     console.log('[Auth Callback] Token verification successful, user:', data.session.user.email)
   } else if (tokenHash && !type) {
@@ -81,7 +91,7 @@ export async function GET(req: NextRequest) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     if (error || !data.session) {
       console.error('[Auth Callback] Exchange failed:', error)
-      return NextResponse.redirect(new URL('/auth/login?error=link_expired', req.url))
+      return NextResponse.redirect(new URL(`/auth/login?error=${failureCode(error)}`, req.url))
     }
     console.log('[Auth Callback] Session exchange successful, user:', data.session.user.email)
   }
