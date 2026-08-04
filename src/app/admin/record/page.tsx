@@ -233,6 +233,7 @@ export default function AdminRecordPage() {
 
   async function startRecording() {
     if (!canStart) {
+      
       return
     }
 
