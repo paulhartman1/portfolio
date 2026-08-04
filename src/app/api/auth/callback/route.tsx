@@ -39,15 +39,19 @@ export async function GET(req: NextRequest) {
   // Handle PKCE flow (code) or token hash flow
   if (code) {
     console.log('[Auth Callback] Exchanging code for session...')
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     if (error) {
       console.error('[Auth Callback] Exchange failed:', error)
       return NextResponse.redirect(new URL('/auth/login?error=auth_failed', req.url))
     }
-    console.log('[Auth Callback] Session exchange successful')
+    if (!data.session) {
+      console.error('[Auth Callback] No session returned from exchangeCodeForSession')
+      return NextResponse.redirect(new URL('/auth/login?error=no_session', req.url))
+    }
+    console.log('[Auth Callback] Session exchange successful, user:', data.session.user.email)
   } else if (tokenHash && type) {
     console.log('[Auth Callback] Verifying token hash...')
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       token_hash: tokenHash,
       type: type as 'invite' | 'magiclink' | 'recovery' | 'signup' | 'email_change',
     })
@@ -55,12 +59,19 @@ export async function GET(req: NextRequest) {
       console.error('[Auth Callback] Token verification failed:', error)
       return NextResponse.redirect(new URL('/auth/login?error=auth_failed', req.url))
     }
-    console.log('[Auth Callback] Token verification successful')
+    if (!data.session) {
+      console.error('[Auth Callback] No session returned from verifyOtp')
+      return NextResponse.redirect(new URL('/auth/login?error=no_session', req.url))
+    }
+    console.log('[Auth Callback] Token verification successful, session established')
   }
 
   // Get user profile to determine redirect
   console.log('[Auth Callback] Getting user...')
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error: getUserError } = await supabase.auth.getUser()
+  if (getUserError) {
+    console.error('[Auth Callback] Error getting user:', getUserError)
+  }
   console.log('[Auth Callback] User:', user?.email)
   if (!user) {
     console.error('[Auth Callback] No user found')
