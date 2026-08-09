@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 
 type RecordingStatus = 'recording' | 'paused' | 'finalized' | 'failed'
@@ -12,6 +12,8 @@ type Marker = {
   timestamp_seconds: number
   created_at: string
 }
+
+type NoteType = Marker['note_type']
 
 type Recording = {
   id: string
@@ -28,9 +30,11 @@ type Recording = {
   final_storage_path: string | null
   markers: Marker[]
   transcript: Transcript | null
+  observations: TranscriptObservation[]
 }
 
 type Utterance = {
+  id: string
   start: number
   end: number
   speaker: number
@@ -58,6 +62,31 @@ type SpeakerCluster = {
   utterance_count: number
   total_speaking_duration: number
   engagement_speaker_identity_assignments: Array<{ person_id: string; persons: SpeakerPerson }>
+}
+
+type ObservationEvidence = {
+  id: string
+  start_utterance_id: string
+  start_char_offset: number
+  end_utterance_id: string
+  end_char_offset: number
+  start_seconds: number
+  end_seconds: number
+  excerpt_text: string
+  speaker_labels: string[]
+  state: 'attached' | 'changed' | 'detached'
+}
+
+type TranscriptObservation = {
+  id: string
+  transcript_id: string
+  statement: string
+  confidence: 'high' | 'medium' | 'low'
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+  evidence: ObservationEvidence[]
 }
 
 type Playback = {
@@ -99,6 +128,235 @@ function formatDate(value: string) {
   return new Date(value).toLocaleString()
 }
 
+function getSelectionRange(
+  utterances: Utterance[],
+  selection: Selection
+): { startUtteranceId: string; startOffset: number; endUtteranceId: string; endOffset: number; startSeconds: number; endSeconds: number; text: string; speakerLabels: string[] } | null {
+  if (!selection.rangeCount) return null
+
+  const range = selection.getRangeAt(0)
+  if (range.collapsed) return null
+
+  const startNode = range.startContainer
+  const endNode = range.endContainer
+
+  const startUttElement = startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : startNode as HTMLElement
+  const endUttElement = endNode.nodeType === Node.TEXT_NODE ? endNode.parentElement : endNode as HTMLElement
+
+  const startUttEl = startUttElement?.closest('[data-utterance-id]') as HTMLElement | null
+  const endUttEl = endUttElement?.closest('[data-utterance-id]') as HTMLElement | null
+
+  if (!startUttEl || !endUttEl) return null
+
+  const startUtteranceId = startUttEl.dataset.utteranceId!
+  const endUtteranceId = endUttEl.dataset.utteranceId!
+
+  const startIdx = utterances.findIndex((u) => u.id === startUtteranceId)
+  const endIdx = utterances.findIndex((u) => u.id === endUtteranceId)
+
+  if (startIdx === -1 || endIdx === -1 || startIdx > endIdx) return null
+
+  const startUtt = utterances[startIdx]
+  const endUtt = utterances[endIdx]
+
+  const startText = startUtt.transcript || ''
+  const endText = endUtt.transcript || ''
+
+  let startOffset = range.startOffset
+  let endOffset = range.endOffset
+
+  if (startNode.nodeType !== Node.TEXT_NODE) {
+    const textBefore = startUttEl.textContent?.slice(0, range.startOffset) || ''
+    startOffset = textBefore.length
+  }
+  if (endNode.nodeType !== Node.TEXT_NODE) {
+    const textBefore = endUttEl.textContent?.slice(0, range.endOffset) || ''
+    endOffset = textBefore.length
+  }
+
+  startOffset = Math.max(0, Math.min(startOffset, startText.length))
+  endOffset = Math.max(0, Math.min(endOffset, endText.length))
+
+  if (startUtteranceId === endUtteranceId && startOffset >= endOffset) return null
+
+  const parts: string[] = []
+  const speakerLabelsSet = new Set<string>()
+  for (let i = startIdx; i <= endIdx; i++) {
+    const utt = utterances[i]
+    const cluster = `speaker-${utt.speaker}`
+    speakerLabelsSet.add(cluster)
+    const text = utt.transcript || ''
+    if (i === startIdx && i === endIdx) {
+      parts.push(text.slice(startOffset, endOffset))
+    } else if (i === startIdx) {
+      parts.push(text.slice(startOffset))
+    } else if (i === endIdx) {
+      parts.push(text.slice(0, endOffset))
+    } else {
+      parts.push(text)
+    }
+  }
+  const fullText = parts.join(' ')
+  if (!fullText.trim()) return null
+
+  return {
+    startUtteranceId,
+    startOffset,
+    endUtteranceId,
+    endOffset,
+    startSeconds: startUtt.start,
+    endSeconds: endUtt.end,
+    text: fullText,
+    speakerLabels: Array.from(speakerLabelsSet),
+  }
+}
+
+interface TranscriptViewProps {
+  utterances: Utterance[]
+  clusters: SpeakerCluster[]
+  observations: TranscriptObservation[]
+  markers: Marker[]
+  formatTimestamp: (seconds: number) => string
+  onSelection: (range: { startUtteranceId: string; startOffset: number; endUtteranceId: string; endOffset: number; startSeconds: number; endSeconds: number; text: string; speakerLabels: string[] } | null) => void
+  onEvidenceClick: (observation: TranscriptObservation, evidence: ObservationEvidence) => void
+}
+
+function TranscriptView({ utterances, clusters, observations, markers, formatTimestamp, onSelection, onEvidenceClick }: TranscriptViewProps) {
+  const utteranceRefs = useRef<Map<string, HTMLSpanElement>>(new Map())
+  const [highlightRanges, setHighlightRanges] = useState<Record<string, { startIdx: number; endIdx: number; startOffset: number; endOffset: number }>>({})
+
+  useEffect(() => {
+    if (!utterances.length) return
+
+    const ranges: Record<string, { startIdx: number; endIdx: number; startOffset: number; endOffset: number }> = {}
+
+    for (const obs of observations) {
+      for (const ev of obs.evidence) {
+        if (ev.state !== 'attached') continue
+        const startIdx = utterances.findIndex((u) => u.id === ev.start_utterance_id)
+        const endIdx = utterances.findIndex((u) => u.id === ev.end_utterance_id)
+        if (startIdx === -1 || endIdx === -1 || startIdx > endIdx) continue
+        ranges[ev.id] = { startIdx, endIdx, startOffset: ev.start_char_offset, endOffset: ev.end_char_offset }
+      }
+    }
+    setHighlightRanges(ranges)
+  }, [utterances, observations])
+
+  function handleMouseUp() {
+    const selection = window.getSelection()
+    if (!selection || selection.rangeCount === 0) return
+    const range = getSelectionRange(utterances, selection)
+    onSelection(range)
+    if (range) {
+    }
+  }
+
+  function getSpeakerName(speaker: number): string {
+    const cluster = clusters.find((c) => c.provider_speaker_key === `speaker-${speaker}`)
+    const person = cluster?.engagement_speaker_identity_assignments?.[0]?.persons
+    return person?.display_name || `Speaker ${speaker + 1}`
+  }
+
+  function markerTarget(marker: Marker) {
+    let bestIndex = -1
+    let bestDistance = Number.POSITIVE_INFINITY
+    utterances.forEach((utterance, index) => {
+      const distance = marker.timestamp_seconds >= utterance.start && marker.timestamp_seconds <= utterance.end
+        ? 0
+        : Math.min(Math.abs(marker.timestamp_seconds - utterance.start), Math.abs(marker.timestamp_seconds - utterance.end))
+      if (distance < bestDistance) {
+        bestDistance = distance
+        bestIndex = index
+      }
+    })
+    return { index: bestIndex, approximate: bestIndex >= 0 && !(marker.timestamp_seconds >= utterances[bestIndex].start && marker.timestamp_seconds <= utterances[bestIndex].end) }
+  }
+
+  function renderUtteranceWithHighlights(utterance: Utterance, index: number) {
+    const utteranceId = utterance.id
+    const text = utterance.transcript || ''
+    const evRanges = Object.values(highlightRanges).filter((r) => r.startIdx <= index && r.endIdx >= index)
+
+    if (evRanges.length === 0) {
+      const utteranceMarkers = markers.map((marker) => ({ marker, target: markerTarget(marker) })).filter(({ target }) => target.index === index)
+      return (
+        <span key={utteranceId} data-utterance-id={utteranceId} ref={(el) => { if (el) utteranceRefs.current.set(utteranceId, el) }}>
+          {text}
+          {utteranceMarkers.map(({ marker, target }) => {
+            const style = markerStyles[marker.note_type]
+            return <button key={marker.id} type="button" title={`${target.approximate ? 'Approximate location. ' : ''}${marker.note_type}: ${marker.note_text || 'No context'}`} className={`ml-2 inline-flex items-center rounded-full px-1.5 py-0.5 text-xs text-white ${style.badge} ${target.approximate ? 'border border-dashed border-[#1A0F2E]' : ''}`} onClick={(event) => event.stopPropagation()}>{target.approximate ? '~' : ''}{style.icon}</button>
+          })}
+        </span>
+      )
+    }
+
+    const segments: React.ReactNode[] = []
+    let lastPos = 0
+
+    for (const r of evRanges) {
+      const isStart = r.startIdx === index
+      const isEnd = r.endIdx === index
+      const segStart = isStart ? r.startOffset : 0
+      const segEnd = isEnd ? r.endOffset : text.length
+
+      if (segStart > lastPos) {
+        segments.push(<span key={`plain-${lastPos}`}>{text.slice(lastPos, segStart)}</span>)
+      }
+      if (segStart < segEnd) {
+        segments.push(
+          <mark
+            key={`highlight-${r.startIdx}-${r.endIdx}`}
+            className="bg-yellow-100 border-b-2 border-yellow-400 cursor-pointer"
+            title="Click to view observation"
+            onClick={(e) => {
+              e.stopPropagation()
+              const ev = Object.entries(highlightRanges).find((entry) => entry[1] === r)
+              if (ev) {
+                const evidence = observations.flatMap((o) => o.evidence).find((e) => e.id === ev[0])
+                const obs = observations.find((o) => o.evidence.some((e) => e.id === ev[0]))
+                if (obs && evidence) onEvidenceClick(obs, evidence)
+              }
+            }}
+          >
+            {text.slice(segStart, segEnd)}
+          </mark>
+        )
+      }
+      lastPos = segEnd
+    }
+
+    if (lastPos < text.length) {
+      segments.push(<span key={`plain-end`}>{text.slice(lastPos)}</span>)
+    }
+
+    const utteranceMarkers = markers.map((marker) => ({ marker, target: markerTarget(marker) })).filter(({ target }) => target.index === index)
+
+    return (
+      <span key={utteranceId} data-utterance-id={utteranceId} ref={(el) => { if (el) utteranceRefs.current.set(utteranceId, el) }}>
+        {segments}
+        {utteranceMarkers.map(({ marker, target }) => {
+          const style = markerStyles[marker.note_type]
+          return <button key={marker.id} type="button" title={`${target.approximate ? 'Approximate location. ' : ''}${marker.note_type}: ${marker.note_text || 'No context'}`} className={`ml-2 inline-flex items-center rounded-full px-1.5 py-0.5 text-xs text-white ${style.badge} ${target.approximate ? 'border border-dashed border-[#1A0F2E]' : ''}`} onClick={(event) => event.stopPropagation()}>{target.approximate ? '~' : ''}{style.icon}</button>
+        })}
+      </span>
+    )
+  }
+
+  return (
+    <div className="space-y-2 border-t border-[#E8E4EF] pt-3" onMouseUp={handleMouseUp}>
+      {utterances.map((utterance, index) => (
+        <div key={utterance.id} className="flex gap-3 text-sm">
+          <span className="shrink-0 font-mono text-xs text-[#6B6785]">{formatTimestamp(Math.floor(utterance.start))}</span>
+          <p className="text-[#1A0F2E]">
+            <span className="font-semibold">{getSpeakerName(utterance.speaker)} <span className="text-xs font-normal text-[#6B6785]">(Speaker {utterance.speaker + 1})</span>:</span>{' '}
+            {renderUtteranceWithHighlights(utterance, index)}
+          </p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 type EngagementRecordingsProps = {
   projectId?: string
   clientId?: string
@@ -114,6 +372,38 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
   const [transcribingId, setTranscribingId] = useState<string | null>(null)
   const [expandedTranscript, setExpandedTranscript] = useState<string | null>(null)
   const [projectPeople, setProjectPeople] = useState<Record<string, SpeakerPerson[]>>({})
+  const [selection, setSelection] = useState<{
+    recordingId: string
+    transcriptId: string
+    startUtteranceId: string
+    startOffset: number
+    endUtteranceId: string
+    endOffset: number
+    startSeconds: number
+    endSeconds: number
+    text: string
+    speakerLabels: string[]
+  } | null>(null)
+  const [observationModal, setObservationModal] = useState<{
+    mode: 'create' | 'edit'
+    transcriptId: string
+    observationId?: string
+    initialStatement: string
+    evidenceText: string
+    startUtteranceId: string
+    startOffset: number
+    endUtteranceId: string
+    endOffset: number
+    startSeconds: number
+    endSeconds: number
+    speakerLabels: string[]
+  } | null>(null)
+  const [savingObservation, setSavingObservation] = useState(false)
+  const [observationConfidence, setObservationConfidence] = useState<'high' | 'medium' | 'low'>('medium')
+  const [observationNotes, setObservationNotes] = useState('')
+  const [markerDraft, setMarkerDraft] = useState<{ recordingId: string; noteText: string; timestampSeconds: number } | null>(null)
+  const [markerType, setMarkerType] = useState<NoteType>('observation')
+  const [savingMarker, setSavingMarker] = useState(false)
 
   const scopeKey = useMemo(() => (clientId ? `client:${clientId}` : `project:${projectId}`), [clientId, projectId])
 
@@ -180,6 +470,117 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
         : []
     if (urls.length > 0) {
       setPlayback((prev) => ({ ...prev, [recordingId]: { urls, index: 0 } }))
+    }
+  }
+
+  async function loadObservations(transcriptId: string, recordingId: string) {
+    try {
+      const response = await fetch(`/api/admin/transcripts/${transcriptId}/observations`)
+      if (!response.ok) return
+      const payload = await response.json()
+      setRecordings((prev) =>
+        prev.map((rec) =>
+          rec.id === recordingId
+            ? { ...rec, observations: payload.observations || [] }
+            : rec
+        )
+      )
+    } catch (err) {
+      console.error('[EngagementRecordings] Failed to load observations:', err)
+    }
+  }
+
+  function handleTranscriptSelection(recordingId: string, transcriptId: string, range: {
+    startUtteranceId: string
+    startOffset: number
+    endUtteranceId: string
+    endOffset: number
+    startSeconds: number
+    endSeconds: number
+    text: string
+    speakerLabels: string[]
+  } | null) {
+    if (!range || !range.text.trim()) {
+      setSelection(null)
+      return
+    }
+    setSelection({
+      recordingId,
+      transcriptId,
+      ...range,
+    })
+  }
+
+  function handleEvidenceClick(observation: TranscriptObservation, evidence: ObservationEvidence) {
+    setObservationModal({
+      mode: 'edit',
+      transcriptId: expandedTranscript!,
+      observationId: observation.id,
+      initialStatement: observation.statement,
+      evidenceText: evidence.excerpt_text,
+      startUtteranceId: evidence.start_utterance_id,
+      startOffset: evidence.start_char_offset,
+      endUtteranceId: evidence.end_utterance_id,
+      endOffset: evidence.end_char_offset,
+      startSeconds: evidence.start_seconds,
+      endSeconds: evidence.end_seconds,
+      speakerLabels: evidence.speaker_labels,
+    })
+    setObservationConfidence(observation.confidence)
+    setObservationNotes(observation.notes || '')
+  }
+
+  async function handleSaveObservation() {
+    if (!observationModal || !observationModal.initialStatement.trim()) return
+    setSavingObservation(true)
+    try {
+      const isEdit = observationModal.mode === 'edit'
+      const url = isEdit
+        ? `/api/admin/transcripts/${observationModal.transcriptId}/observations/${observationModal.observationId}`
+        : `/api/admin/transcripts/${observationModal.transcriptId}/observations`
+      const body = isEdit
+        ? { statement: observationModal.initialStatement, confidence: observationConfidence, notes: observationNotes }
+        : {
+            statement: observationModal.initialStatement,
+            confidence: observationConfidence,
+            notes: observationNotes,
+            start_utterance_id: observationModal.startUtteranceId,
+            start_char_offset: observationModal.startOffset,
+            end_utterance_id: observationModal.endUtteranceId,
+            end_char_offset: observationModal.endOffset,
+            start_seconds: observationModal.startSeconds,
+            end_seconds: observationModal.endSeconds,
+          }
+      const response = await fetch(url, { method: isEdit ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error || 'Failed to save observation')
+      setObservationModal(null)
+      setSelection(null)
+      await loadRecordings()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to save observation')
+    } finally {
+      setSavingObservation(false)
+    }
+  }
+
+  async function handleSaveMarker() {
+    if (!markerDraft) return
+    setSavingMarker(true)
+    try {
+      const response = await fetch(`/api/admin/recordings/${markerDraft.recordingId}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note_type: markerType, note_text: markerDraft.noteText.trim() || null, timestamp_seconds: markerDraft.timestampSeconds }),
+      })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error || 'Failed to add marker')
+      setMarkerDraft(null)
+      await loadRecordings()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to add marker')
+    } finally {
+      setSavingMarker(false)
     }
   }
 
@@ -332,7 +733,7 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
                       {recording.transcript?.status === 'complete' ? 'Transcript ready' : recording.transcript?.status === 'processing' ? recording.transcript.processing_mode === 'chunked' && recording.transcript.total_parts ? `Transcribing ${recording.transcript.processed_parts} / ${recording.transcript.total_parts} chunks` : 'Transcribing' : recording.transcript?.status === 'failed' ? 'Transcription failed' : 'Not transcribed'}
                     </span>
                     {recording.transcript?.status === 'complete' && (
-                      <button onClick={() => { const next = expandedTranscript === recording.id ? null : recording.id; setExpandedTranscript(next); if (next) void loadProjectPeople(recording.project_id) }} className="font-semibold text-[#290D47]">
+                      <button onClick={() => { const next = expandedTranscript === recording.id ? null : recording.id; setExpandedTranscript(next); if (next) { void loadProjectPeople(recording.project_id); if (recording.transcript) void loadObservations(recording.transcript.id, recording.id); } }} className="font-semibold text-[#290D47]">
                         {expandedTranscript === recording.id ? 'Hide transcript' : 'Show transcript'}
                       </button>
                     )}
@@ -358,17 +759,18 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
                           })}
                         </div>
                       )}
-                      <p className="whitespace-pre-wrap text-sm text-[#1A0F2E]">{recording.transcript!.full_text || 'No transcript text returned.'}</p>
                       {recording.transcript!.utterances.length > 0 && (
-                        <div className="space-y-2 border-t border-[#E8E4EF] pt-3">
-                          {recording.transcript!.utterances.map((utterance, index) => (
-                            <div key={`${recording.id}-utterance-${index}`} className="flex gap-3 text-sm">
-                              <span className="shrink-0 font-mono text-xs text-[#6B6785]">{formatTimestamp(Math.floor(utterance.start))}</span>
-                              <p className="text-[#1A0F2E]"><span className="font-semibold">{recording.transcript!.clusters.find((cluster) => cluster.provider_speaker_key === `speaker-${utterance.speaker}`)?.engagement_speaker_identity_assignments?.[0]?.persons?.display_name || `Speaker ${utterance.speaker + 1}`} <span className="text-xs font-normal text-[#6B6785]">(Speaker {utterance.speaker + 1})</span>:</span> {utterance.transcript}</p>
-                            </div>
-                          ))}
-                        </div>
+                        <TranscriptView
+                          utterances={recording.transcript!.utterances}
+                          clusters={recording.transcript!.clusters}
+                          observations={recording.observations}
+                          markers={recording.markers}
+                          formatTimestamp={formatTimestamp}
+                          onSelection={(range) => handleTranscriptSelection(recording.id, recording.transcript!.id, range)}
+                          onEvidenceClick={handleEvidenceClick}
+                        />
                       )}
+                      {recording.transcript!.utterances.length === 0 && <p className="text-sm text-[#6B6785]">No diarized transcript segments returned.</p>}
                     </div>
                   )}
                 </div>
@@ -427,6 +829,38 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
               </div>
             )
           })}
+        </div>
+      )}
+
+      {selection && !observationModal && (
+        <div className="fixed bottom-6 right-6 z-40 flex gap-2 rounded-lg bg-white p-2 shadow-lg">
+          <button type="button" className="rounded bg-[#290D47] px-4 py-2 text-sm font-semibold text-white" onClick={() => { setObservationConfidence('medium'); setObservationNotes(''); setObservationModal({ mode: 'create', transcriptId: selection.transcriptId, initialStatement: selection.text, evidenceText: selection.text, startUtteranceId: selection.startUtteranceId, startOffset: selection.startOffset, endUtteranceId: selection.endUtteranceId, endOffset: selection.endOffset, startSeconds: selection.startSeconds, endSeconds: selection.endSeconds, speakerLabels: selection.speakerLabels }) }}>Create observation</button>
+          <button type="button" className="rounded bg-[#00F5E4] px-4 py-2 text-sm font-semibold text-[#1A0F2E]" onClick={() => { setMarkerType('observation'); setMarkerDraft({ recordingId: selection.recordingId, noteText: selection.text, timestampSeconds: Math.floor(selection.startSeconds) }) }}>Add marker</button>
+        </div>
+      )}
+
+      {observationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1A0F2E]/50 p-4" onClick={() => setObservationModal(null)}>
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-sm" onClick={(event) => event.stopPropagation()}>
+            <h2 className="mb-6 text-xl font-semibold text-[#1A0F2E]">{observationModal.mode === 'create' ? 'Create observation' : 'Edit observation'}</h2>
+            <label className="mb-4 block text-sm text-[#6B6785]">Statement *<textarea value={observationModal.initialStatement} onChange={(event) => setObservationModal({ ...observationModal, initialStatement: event.target.value })} rows={3} className="mt-2 w-full rounded-lg border border-[#E8E4EF] p-3 text-[#1A0F2E]" /></label>
+            <div className="mb-4 rounded-lg border border-[#E8E4EF] bg-[#F8F7F5] p-4 text-sm text-[#1A0F2E]"><strong>Evidence excerpt</strong><p className="mt-2 whitespace-pre-wrap">{observationModal.evidenceText}</p><p className="mt-2 text-xs text-[#6B6785]">{formatTimestamp(observationModal.startSeconds)} to {formatTimestamp(observationModal.endSeconds)} · {observationModal.speakerLabels.join(', ')}</p></div>
+            <label className="mb-4 block text-sm text-[#6B6785]">Confidence<select value={observationConfidence} onChange={(event) => setObservationConfidence(event.target.value as 'high' | 'medium' | 'low')} className="mt-2 w-full rounded-lg border border-[#E8E4EF] p-3 text-[#1A0F2E]"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
+            <label className="mb-4 block text-sm text-[#6B6785]">Notes<textarea value={observationNotes} onChange={(event) => setObservationNotes(event.target.value)} rows={2} className="mt-2 w-full rounded-lg border border-[#E8E4EF] p-3 text-[#1A0F2E]" /></label>
+            <div className="flex gap-3"><button type="button" onClick={() => setObservationModal(null)} className="flex-1 rounded-lg bg-gray-100 px-4 py-3 font-semibold text-[#1A0F2E]">Cancel</button><button type="button" onClick={() => void handleSaveObservation()} disabled={savingObservation} className="flex-1 rounded-lg bg-[#290D47] px-4 py-3 font-semibold text-white disabled:opacity-50">{savingObservation ? 'Saving...' : 'Save observation'}</button></div>
+          </div>
+        </div>
+      )}
+
+      {markerDraft && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1A0F2E]/50 p-4" onClick={() => setMarkerDraft(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sm" onClick={(event) => event.stopPropagation()}>
+            <h2 className="mb-4 text-xl font-semibold text-[#1A0F2E]">Add marker</h2>
+            <p className="mb-3 text-xs text-[#6B6785]">Timestamp: {formatTimestamp(markerDraft.timestampSeconds)}</p>
+            <div className="mb-4 flex flex-wrap gap-2">{(Object.keys(markerStyles) as NoteType[]).map((type) => <button key={type} type="button" onClick={() => setMarkerType(type)} className={`rounded px-3 py-2 text-sm font-semibold text-white ${markerStyles[type].badge} ${markerType === type ? 'ring-2 ring-[#1A0F2E] ring-offset-2' : ''}`}>{markerStyles[type].icon} {type}</button>)}</div>
+            <textarea value={markerDraft.noteText} onChange={(event) => setMarkerDraft({ ...markerDraft, noteText: event.target.value })} rows={4} className="mb-4 w-full rounded-lg border border-[#E8E4EF] p-3 text-sm text-[#1A0F2E]" placeholder="Optional marker context" />
+            <div className="flex gap-3"><button type="button" onClick={() => setMarkerDraft(null)} className="flex-1 rounded-lg bg-gray-100 px-4 py-3 font-semibold text-[#1A0F2E]">Cancel</button><button type="button" onClick={() => void handleSaveMarker()} disabled={savingMarker} className="flex-1 rounded-lg bg-[#290D47] px-4 py-3 font-semibold text-white disabled:opacity-50">{savingMarker ? 'Saving...' : 'Save marker'}</button></div>
+          </div>
         </div>
       )}
     </section>

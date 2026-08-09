@@ -1,13 +1,5 @@
 import { createServiceRoleClient } from '@/utils/supabase/service-role'
-
-type Utterance = {
-  start: number
-  end: number
-  speaker: number
-  provider_speaker_key?: string
-  transcript: string
-  confidence?: number
-}
+import { reconcileUtteranceIds, RawUtterance, Utterance } from './_utterance-ids'
 
 type DeepgramPayload = {
   metadata?: { duration?: number }
@@ -208,15 +200,24 @@ export async function transcribeRecording(recordingId: string) {
     transcriptId = transcript.id
     const jobId = transcript.id
 
+    // Fetch existing utterances for ID reconciliation (preserve IDs on retranscription)
+    const { data: existingTranscript } = await serviceRole
+      .from('engagement_transcripts')
+      .select('utterances')
+      .eq('id', transcriptId)
+      .single()
+    const previousUtterances = (existingTranscript?.utterances as Utterance[]) || null
+
     await serviceRole.from('engagement_recordings').update({ pipeline_status: 'transcribing', error_details: null }).eq('id', recordingId)
 
     if (!sourcePath) {
       const result = await transcribeChunks(serviceRole, recordingId, jobId, apiKey)
+      const reconciledUtterances = reconcileUtteranceIds(result.utterances as RawUtterance[], previousUtterances)
       await serviceRole.from('engagement_transcripts').update({
         status: 'complete',
         duration_seconds: result.durationSeconds,
         full_text: result.fullText,
-        utterances: result.utterances,
+        utterances: reconciledUtterances,
         raw_json: { mode: 'chunked', parts: result.rawParts },
         completed_at: new Date().toISOString(),
       }).eq('id', transcriptId)
@@ -226,10 +227,11 @@ export async function transcribeRecording(recordingId: string) {
       const payload = await transcribeAudio(audio, apiKey)
       const utterances = payload.results?.utterances || []
       const alternative = payload.results?.channels?.[0]?.alternatives?.[0]
+      const reconciledUtterances = reconcileUtteranceIds(utterances as RawUtterance[], previousUtterances)
       await serviceRole.from('engagement_transcripts').update({
         processing_mode: 'assembled',
         full_text: alternative?.transcript || utterances.map((utterance) => utterance.transcript).join(' '),
-        utterances,
+        utterances: reconciledUtterances,
         raw_json: payload,
         speaker_count: new Set(utterances.map((utterance) => utterance.speaker)).size || null,
         duration_seconds: payload.metadata?.duration || null,
