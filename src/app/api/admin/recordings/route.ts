@@ -97,6 +97,10 @@ export async function GET(request: NextRequest) {
   }
 
   const transcriptIds = (transcripts || []).map((transcript) => transcript.id)
+  const { data: observations, error: observationsError } = transcriptIds.length
+    ? await admin.supabase.from('transcript_observations').select('id, transcript_id, statement, confidence, notes, created_by, created_at, updated_at, transcript_observation_evidence(*)').in('transcript_id', transcriptIds)
+    : { data: [], error: null }
+  if (observationsError) return NextResponse.json({ error: observationsError.message }, { status: 500 })
   const { data: clusters, error: clustersError } = transcriptIds.length
     ? await admin.supabase
       .from('engagement_transcript_speaker_clusters')
@@ -119,12 +123,22 @@ export async function GET(request: NextRequest) {
     clustersByTranscript.set(cluster.transcript_id, group)
   }
   const transcriptByRecording = new Map((transcripts || []).map((transcript) => [transcript.recording_id, { ...transcript, clusters: clustersByTranscript.get(transcript.id) || [] }]))
+  const observationsByTranscript = new Map<string, typeof observations>()
+  for (const observation of observations || []) {
+    const group = observationsByTranscript.get(observation.transcript_id) || []
+    group.push(observation)
+    observationsByTranscript.set(observation.transcript_id, group)
+  }
 
   const recordingsWithMarkers = list.map((recording) => ({
     ...recording,
     project_name: projectNameById.get(recording.project_id) || null,
     markers: markersByRecording.get(recording.id) || [],
     transcript: transcriptByRecording.get(recording.id) || null,
+    observations: (observationsByTranscript.get(transcriptByRecording.get(recording.id)?.id || '') || []).map((observation) => ({
+      ...observation,
+      evidence: observation.transcript_observation_evidence || [],
+    })),
   }))
 
   return NextResponse.json({ recordings: recordingsWithMarkers })
