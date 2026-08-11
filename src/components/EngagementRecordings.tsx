@@ -776,7 +776,8 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
   }
 
   function toggleEvidenceFocus(candidate: IntelligenceCandidate) {
-    const utteranceIds = candidate.evidence.flatMap((evidence) => evidence.utterance_ids)
+    const evidence = candidate.evidence || []
+    const utteranceIds = evidence.flatMap((e) => e.utterance_ids)
     if (focusedEvidence?.transcriptId === candidate.transcript_id && utteranceIds.length > 0 && focusedEvidence.utteranceIds.join(',') === utteranceIds.join(',')) {
       setFocusedEvidence(null)
       return
@@ -800,7 +801,8 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
           const isAccepting = reviewStatus[candidate.id] === 'accepting'
           const isRejecting = reviewStatus[candidate.id] === 'rejecting'
           const isAccepted = candidate.status === 'accepted'
-          const evidenceCount = candidate.evidence.reduce((sum, evidence) => sum + evidence.utterance_ids.length, 0)
+          const evidence = candidate.evidence || []
+          const evidenceCount = evidence.reduce((sum, e) => sum + e.utterance_ids.length, 0)
           return (
             <div key={candidate.id} className={`rounded-lg border p-3 ${isAccepted ? 'border-green-200 bg-green-50/50' : 'border-[#E8E4EF] bg-[#F8F7F5]'}`}>
               <div className="flex flex-wrap items-center gap-2">
@@ -817,7 +819,7 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
                 <p className="mt-1 text-xs text-[#6B6785] whitespace-pre-wrap">{candidate.reasoning_summary}</p>
               )}
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                {candidate.evidence.length > 0 && (
+                {evidence.length > 0 && (
                   <button type="button" onClick={() => toggleEvidenceFocus(candidate)} className="text-xs font-semibold text-[#290D47] hover:opacity-80">
                     {focusedEvidence?.transcriptId === candidate.transcript_id ? 'Clear highlight' : 'Highlight evidence'}
                   </button>
@@ -839,11 +841,11 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
               </div>
               {expandedCandidate === candidate.id && (
                 <div className="mt-2 rounded bg-white border border-[#E8E4EF] p-2 space-y-1">
-                  {candidate.evidence.length === 0
+                  {evidence.length === 0
                     ? <p className="text-xs text-[#6B6785] italic">No transcript evidence cited by the model.</p>
-                    : candidate.evidence.map((evidence) => (
-                      <p key={evidence.id} className="text-xs text-[#6B6785]">
-                        Transcript {evidence.transcript_id.slice(0, 8)} · {evidence.role} · {evidence.utterance_ids.slice(0, 6).join(', ')}{evidence.utterance_ids.length > 6 ? ` +${evidence.utterance_ids.length - 6}` : ''}
+                    : evidence.map((evidenceItem) => (
+                      <p key={evidenceItem.id} className="text-xs text-[#6B6785]">
+                        Transcript {evidenceItem.transcript_id.slice(0, 8)} · {evidenceItem.role} · {evidenceItem.utterance_ids.slice(0, 6).join(', ')}{evidenceItem.utterance_ids.length > 6 ? ` +${evidenceItem.utterance_ids.length - 6}` : ''}
                       </p>
                     ))}
                 </div>
