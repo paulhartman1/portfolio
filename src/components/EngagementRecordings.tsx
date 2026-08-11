@@ -89,6 +89,30 @@ type TranscriptObservation = {
   evidence: ObservationEvidence[]
 }
 
+type IntelligenceCandidate = {
+  id: string
+  project_id: string
+  transcript_id: string
+  type: 'follow_up_question' | 'observation' | 'contradiction' | 'knowledge_gap' | 'knowledge_transfer_risk'
+  content: string
+  reasoning_summary: string | null
+  confidence: number | null
+  provider: string
+  model: string
+  status: 'candidate' | 'accepted' | 'rejected'
+  accepted_observation_id: string | null
+  created_at: string
+  evidence: Array<{ id: string; transcript_id: string; utterance_ids: string[]; role: string }>
+}
+
+const intelligenceTypeStyles: Record<IntelligenceCandidate['type'], { badge: string; label: string }> = {
+  follow_up_question: { badge: 'bg-blue-100 text-blue-800', label: 'Follow-up question' },
+  observation: { badge: 'bg-purple-100 text-purple-800', label: 'Observation' },
+  contradiction: { badge: 'bg-red-100 text-red-800', label: 'Contradiction' },
+  knowledge_gap: { badge: 'bg-amber-100 text-amber-800', label: 'Knowledge gap' },
+  knowledge_transfer_risk: { badge: 'bg-slate-700 text-white', label: 'Knowledge-transfer risk' },
+}
+
 type Playback = {
   urls: string[]
   index: number
@@ -219,9 +243,10 @@ interface TranscriptViewProps {
   formatTimestamp: (seconds: number) => string
   onSelection: (range: { startUtteranceId: string; startOffset: number; endUtteranceId: string; endOffset: number; startSeconds: number; endSeconds: number; text: string; speakerLabels: string[] } | null) => void
   onEvidenceClick: (observation: TranscriptObservation, evidence: ObservationEvidence) => void
+  focusUtteranceIds: Set<string>
 }
 
-function TranscriptView({ utterances, clusters, observations, markers, formatTimestamp, onSelection, onEvidenceClick }: TranscriptViewProps) {
+function TranscriptView({ utterances, clusters, observations, markers, formatTimestamp, onSelection, onEvidenceClick, focusUtteranceIds }: TranscriptViewProps) {
   const utteranceRefs = useRef<Map<string, HTMLSpanElement>>(new Map())
   const [highlightRanges, setHighlightRanges] = useState<Record<string, { startIdx: number; endIdx: number; startOffset: number; endOffset: number }>>({})
 
@@ -250,6 +275,14 @@ function TranscriptView({ utterances, clusters, observations, markers, formatTim
     if (range) {
     }
   }
+
+  useEffect(() => {
+    if (focusUtteranceIds.size === 0) return
+    const first = utterances.find((u) => focusUtteranceIds.has(u.id))
+    if (!first) return
+    const el = utteranceRefs.current.get(first.id)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [focusUtteranceIds, utterances])
 
   function getSpeakerName(speaker: number): string {
     const cluster = clusters.find((c) => c.provider_speaker_key === `speaker-${speaker}`)
@@ -293,19 +326,19 @@ function TranscriptView({ utterances, clusters, observations, markers, formatTim
     const segments: React.ReactNode[] = []
     let lastPos = 0
 
-    for (const r of evRanges) {
+    evRanges.forEach((r, rangeIdx) => {
       const isStart = r.startIdx === index
       const isEnd = r.endIdx === index
       const segStart = isStart ? r.startOffset : 0
       const segEnd = isEnd ? r.endOffset : text.length
 
       if (segStart > lastPos) {
-        segments.push(<span key={`plain-${lastPos}`}>{text.slice(lastPos, segStart)}</span>)
+        segments.push(<span key={`plain-${index}-${rangeIdx}-${lastPos}`}>{text.slice(lastPos, segStart)}</span>)
       }
       if (segStart < segEnd) {
         segments.push(
           <mark
-            key={`highlight-${r.startIdx}-${r.endIdx}`}
+            key={`highlight-${index}-${rangeIdx}-${r.startIdx}-${r.endIdx}`}
             className="bg-yellow-100 border-b-2 border-yellow-400 cursor-pointer"
             title="Click to view observation"
             onClick={(e) => {
@@ -323,10 +356,10 @@ function TranscriptView({ utterances, clusters, observations, markers, formatTim
         )
       }
       lastPos = segEnd
-    }
+    })
 
     if (lastPos < text.length) {
-      segments.push(<span key={`plain-end`}>{text.slice(lastPos)}</span>)
+      segments.push(<span key={`plain-end-${index}`}>{text.slice(lastPos)}</span>)
     }
 
     const utteranceMarkers = markers.map((marker) => ({ marker, target: markerTarget(marker) })).filter(({ target }) => target.index === index)
@@ -344,15 +377,18 @@ function TranscriptView({ utterances, clusters, observations, markers, formatTim
 
   return (
     <div className="space-y-2 border-t border-[#E8E4EF] pt-3" onMouseUp={handleMouseUp}>
-      {utterances.map((utterance, index) => (
-        <div key={utterance.id} className="flex gap-3 text-sm">
-          <span className="shrink-0 font-mono text-xs text-[#6B6785]">{formatTimestamp(Math.floor(utterance.start))}</span>
-          <p className="text-[#1A0F2E]">
-            <span className="font-semibold">{getSpeakerName(utterance.speaker)} <span className="text-xs font-normal text-[#6B6785]">(Speaker {utterance.speaker + 1})</span>:</span>{' '}
-            {renderUtteranceWithHighlights(utterance, index)}
-          </p>
-        </div>
-      ))}
+      {utterances.map((utterance, index) => {
+        const isFocused = focusUtteranceIds.has(utterance.id)
+        return (
+          <div key={utterance.id} className={`flex gap-3 text-sm ${isFocused ? 'rounded-lg bg-cyan-50 py-1 ring-2 ring-cyan-300' : ''}`}>
+            <span className="shrink-0 font-mono text-xs text-[#6B6785]">{formatTimestamp(Math.floor(utterance.start))}</span>
+            <p className="text-[#1A0F2E]">
+              <span className="font-semibold">{getSpeakerName(utterance.speaker)} <span className="text-xs font-normal text-[#6B6785]">(Speaker {utterance.speaker + 1})</span>:</span>{' '}
+              {renderUtteranceWithHighlights(utterance, index)}
+            </p>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -404,6 +440,11 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
   const [markerDraft, setMarkerDraft] = useState<{ recordingId: string; noteText: string; timestampSeconds: number } | null>(null)
   const [markerType, setMarkerType] = useState<NoteType>('observation')
   const [savingMarker, setSavingMarker] = useState(false)
+  const [intelligenceByTranscript, setIntelligenceByTranscript] = useState<Record<string, IntelligenceCandidate[]>>({})
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null)
+  const [expandedCandidate, setExpandedCandidate] = useState<string | null>(null)
+  const [focusedEvidence, setFocusedEvidence] = useState<{ transcriptId: string; utteranceIds: string[] } | null>(null)
+  const [reviewStatus, setReviewStatus] = useState<Record<string, 'accepting' | 'rejecting'>>({})
 
   const scopeKey = useMemo(() => (clientId ? `client:${clientId}` : `project:${projectId}`), [clientId, projectId])
 
@@ -646,6 +687,174 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
     }
   }
 
+  async function loadCandidates(transcriptId: string) {
+    try {
+      const response = await fetch(`/api/admin/transcripts/${transcriptId}/candidates`)
+      if (!response.ok) return
+      const payload = await response.json()
+      console.log('[EngagementRecordings] loadCandidates', { transcriptId, candidates: payload?.candidates?.length ?? 0 })
+      setIntelligenceByTranscript((current) => ({ ...current, [transcriptId]: payload.candidates || [] }))
+    } catch (err) {
+      console.error('[EngagementRecordings] Failed to load candidates:', err)
+    }
+  }
+
+  async function analyzeRecording(recording: Recording) {
+    const transcriptId = recording.transcript?.id
+    if (!transcriptId) return
+    setAnalyzingId(recording.id)
+    const startedAt = Date.now()
+    console.log('[EngagementRecordings] analyze:start', { transcriptId, projectId: recording.project_id })
+    try {
+      const response = await fetch(`/api/admin/transcripts/${transcriptId}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: recording.project_id }),
+      })
+      const payload = await response.json()
+      console.log('[EngagementRecordings] analyze:response', {
+        status: response.status,
+        ok: response.ok,
+        elapsedMs: Date.now() - startedAt,
+        candidates: payload?.candidates?.length,
+        error: payload?.error,
+      })
+      if (!response.ok) throw new Error(payload.error || 'Analysis failed')
+      await loadCandidates(transcriptId)
+    } catch (err) {
+      console.error('[EngagementRecordings] analyze:error', err)
+      alert(err instanceof Error ? err.message : 'Analysis failed')
+    } finally {
+      setAnalyzingId(null)
+    }
+  }
+
+  async function acceptCandidate(candidate: IntelligenceCandidate) {
+    setReviewStatus((current) => ({ ...current, [candidate.id]: 'accepting' }))
+    try {
+      const response = await fetch(`/api/admin/transcripts/${candidate.transcript_id}/candidates/${candidate.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error || 'Accept failed')
+      await loadCandidates(candidate.transcript_id)
+      const recording = recordings.find((r) => r.transcript?.id === candidate.transcript_id)
+      if (recording && payload.acceptedObservationId) {
+        await loadObservations(candidate.transcript_id, recording.id)
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Accept failed')
+    } finally {
+      setReviewStatus((current) => {
+        const next = { ...current }
+        delete next[candidate.id]
+        return next
+      })
+    }
+  }
+
+  async function rejectCandidate(candidate: IntelligenceCandidate) {
+    setReviewStatus((current) => ({ ...current, [candidate.id]: 'rejecting' }))
+    try {
+      const response = await fetch(`/api/admin/transcripts/${candidate.transcript_id}/candidates/${candidate.id}`, {
+        method: 'DELETE',
+      })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error || 'Reject failed')
+      await loadCandidates(candidate.transcript_id)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Reject failed')
+    } finally {
+      setReviewStatus((current) => {
+        const next = { ...current }
+        delete next[candidate.id]
+        return next
+      })
+    }
+  }
+
+  function toggleEvidenceFocus(candidate: IntelligenceCandidate) {
+    const utteranceIds = candidate.evidence.flatMap((evidence) => evidence.utterance_ids)
+    if (focusedEvidence?.transcriptId === candidate.transcript_id && utteranceIds.length > 0 && focusedEvidence.utteranceIds.join(',') === utteranceIds.join(',')) {
+      setFocusedEvidence(null)
+      return
+    }
+    setFocusedEvidence(utteranceIds.length > 0 ? { transcriptId: candidate.transcript_id, utteranceIds } : null)
+  }
+
+  function renderCandidateList(transcriptId: string) {
+    const candidates = intelligenceByTranscript[transcriptId] || []
+    if (candidates.length === 0) {
+      return (
+        <p className="text-sm text-[#6B6785]">
+          No candidate insights yet. Use “Analyze interview” to get project-aware suggestions.
+        </p>
+      )
+    }
+    return (
+      <div className="space-y-2">
+        {candidates.map((candidate) => {
+          const style = intelligenceTypeStyles[candidate.type]
+          const isAccepting = reviewStatus[candidate.id] === 'accepting'
+          const isRejecting = reviewStatus[candidate.id] === 'rejecting'
+          const isAccepted = candidate.status === 'accepted'
+          const evidenceCount = candidate.evidence.reduce((sum, evidence) => sum + evidence.utterance_ids.length, 0)
+          return (
+            <div key={candidate.id} className={`rounded-lg border p-3 ${isAccepted ? 'border-green-200 bg-green-50/50' : 'border-[#E8E4EF] bg-[#F8F7F5]'}`}>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`px-2 py-0.5 rounded text-xs uppercase font-semibold ${style.badge}`}>{style.label}</span>
+                <span className="text-xs text-[#6B6785]">
+                  {candidate.confidence != null ? `confidence ${candidate.confidence.toFixed(2)}` : ''}
+                  {evidenceCount > 0 ? ` · ${evidenceCount} evidence utterances` : ' · no evidence cited'}
+                </span>
+                {isAccepted && <span className="px-2 py-0.5 rounded bg-green-100 text-green-800 text-xs uppercase font-semibold">Accepted</span>}
+                {candidate.status === 'candidate' && <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs uppercase font-semibold">Candidate</span>}
+              </div>
+              <p className="mt-2 text-sm text-[#1A0F2E]">{candidate.content}</p>
+              {candidate.reasoning_summary && (
+                <p className="mt-1 text-xs text-[#6B6785] whitespace-pre-wrap">{candidate.reasoning_summary}</p>
+              )}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {candidate.evidence.length > 0 && (
+                  <button type="button" onClick={() => toggleEvidenceFocus(candidate)} className="text-xs font-semibold text-[#290D47] hover:opacity-80">
+                    {focusedEvidence?.transcriptId === candidate.transcript_id ? 'Clear highlight' : 'Highlight evidence'}
+                  </button>
+                )}
+                {candidate.status === 'candidate' && (
+                  <>
+                    <button type="button" onClick={() => void acceptCandidate(candidate)} disabled={isAccepting || isRejecting} className="px-3 py-1 rounded bg-[#290D47] text-white text-xs font-semibold disabled:opacity-50">
+                      {isAccepting ? 'Accepting...' : 'Accept'}
+                    </button>
+                    <button type="button" onClick={() => void rejectCandidate(candidate)} disabled={isAccepting || isRejecting} className="px-3 py-1 rounded bg-gray-200 text-[#1A0F2E] text-xs font-semibold disabled:opacity-50">
+                      {isRejecting ? 'Rejecting...' : 'Reject'}
+                    </button>
+                    <button type="button" onClick={() => setExpandedCandidate(expandedCandidate === candidate.id ? null : candidate.id)} className="text-xs font-semibold text-[#290D47] hover:opacity-80">
+                      {expandedCandidate === candidate.id ? 'Less' : 'Details'}
+                    </button>
+                  </>
+                )}
+                <span className="ml-auto text-xs text-[#6B6785]">{candidate.provider}/{candidate.model}</span>
+              </div>
+              {expandedCandidate === candidate.id && (
+                <div className="mt-2 rounded bg-white border border-[#E8E4EF] p-2 space-y-1">
+                  {candidate.evidence.length === 0
+                    ? <p className="text-xs text-[#6B6785] italic">No transcript evidence cited by the model.</p>
+                    : candidate.evidence.map((evidence) => (
+                      <p key={evidence.id} className="text-xs text-[#6B6785]">
+                        Transcript {evidence.transcript_id.slice(0, 8)} · {evidence.role} · {evidence.utterance_ids.slice(0, 6).join(', ')}{evidence.utterance_ids.length > 6 ? ` +${evidence.utterance_ids.length - 6}` : ''}
+                      </p>
+                    ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
     <section className="bg-white border border-[#290D47]/15 rounded-2xl p-6 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -733,9 +942,18 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
                       {recording.transcript?.status === 'complete' ? 'Transcript ready' : recording.transcript?.status === 'processing' ? recording.transcript.processing_mode === 'chunked' && recording.transcript.total_parts ? `Transcribing ${recording.transcript.processed_parts} / ${recording.transcript.total_parts} chunks` : 'Transcribing' : recording.transcript?.status === 'failed' ? 'Transcription failed' : 'Not transcribed'}
                     </span>
                     {recording.transcript?.status === 'complete' && (
-                      <button onClick={() => { const next = expandedTranscript === recording.id ? null : recording.id; setExpandedTranscript(next); if (next) { void loadProjectPeople(recording.project_id); if (recording.transcript) void loadObservations(recording.transcript.id, recording.id); } }} className="font-semibold text-[#290D47]">
-                        {expandedTranscript === recording.id ? 'Hide transcript' : 'Show transcript'}
-                      </button>
+                      <>
+                        <button onClick={() => { const next = expandedTranscript === recording.id ? null : recording.id; setExpandedTranscript(next); if (next) { void loadProjectPeople(recording.project_id); if (recording.transcript) { void loadObservations(recording.transcript.id, recording.id); void loadCandidates(recording.transcript.id); } } }} className="font-semibold text-[#290D47]">
+                          {expandedTranscript === recording.id ? 'Hide transcript' : 'Show transcript'}
+                        </button>
+                        <button
+                          onClick={() => void analyzeRecording(recording)}
+                          disabled={analyzingId === recording.id}
+                          className="px-2 py-0.5 rounded bg-[#00F5E4] text-[#1A0F2E] font-semibold disabled:opacity-50"
+                        >
+                          {analyzingId === recording.id ? 'Analyzing...' : 'Analyze interview'}
+                        </button>
+                      </>
                     )}
                   </div>
                   {recording.transcript?.status === 'failed' && recording.transcript.error_details && (
@@ -768,9 +986,17 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
                           formatTimestamp={formatTimestamp}
                           onSelection={(range) => handleTranscriptSelection(recording.id, recording.transcript!.id, range)}
                           onEvidenceClick={handleEvidenceClick}
+                          focusUtteranceIds={focusedEvidence?.transcriptId === recording.transcript!.id ? new Set(focusedEvidence.utteranceIds) : new Set()}
                         />
                       )}
                       {recording.transcript!.utterances.length === 0 && <p className="text-sm text-[#6B6785]">No diarized transcript segments returned.</p>}
+                      <div className="rounded-lg border border-[#E8E4EF] bg-white p-3 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <h4 className="text-sm font-semibold text-[#1A0F2E]">Project Intelligence</h4>
+                          <span className="text-xs text-[#6B6785]">AI candidates · human review required</span>
+                        </div>
+                        {renderCandidateList(recording.transcript!.id)}
+                      </div>
                     </div>
                   )}
                 </div>
