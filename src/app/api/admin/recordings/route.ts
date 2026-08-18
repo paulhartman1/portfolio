@@ -1,6 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from './_lib'
+import { createServiceRoleClient } from '@/utils/supabase/service-role'
 
 export async function GET(request: NextRequest) {
   const admin = await requireAdmin()
@@ -155,6 +156,9 @@ export async function POST(request: NextRequest) {
   const title = body.title?.toString()?.trim()
   const sessionType = body.session_type?.toString()?.trim()
   const consentGiven = Boolean(body.consent_given)
+  const sourceType = body.source_type?.toString() || 'uploaded_video'
+  const mimeType = body.mime_type as string | null
+  const container = body.container as string | null
 
   if (!projectId || !title || !sessionType || !consentGiven) {
     return NextResponse.json(
@@ -171,14 +175,45 @@ export async function POST(request: NextRequest) {
       session_type: sessionType,
       consent_given: true,
       created_by: admin.user.id,
-      status: 'recording',
+      status: 'uploading',
+      source_type: sourceType,
+      mime_type: mimeType,
+      container: container,
     })
-    .select('id, project_id, title, session_type, status, started_at')
+    .select('id, project_id, title, session_type, status, started_at, source_type, mime_type, container')
     .single()
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ recording: data })
+  const ext = container || title.split('.').pop() || 'bin'
+  const storagePath = `${data.id}/original.${ext}`
+
+  const { error: updateError } = await admin.supabase
+    .from('engagement_recordings')
+    .update({ final_storage_path: storagePath })
+    .eq('id', data.id)
+
+  if (updateError) {
+    await admin.supabase.from('engagement_recordings').delete().eq('id', data.id)
+    return NextResponse.json({ error: `Failed to set storage path: ${updateError.message}` }, { status: 500 })
+  }
+
+  const serviceRole = createServiceRoleClient()
+  const { data: signedUrlData, error: signedUrlError } = await serviceRole.storage
+    .from('engagement-recordings')
+    .createSignedUploadUrl(storagePath)
+
+  if (signedUrlError) {
+    await admin.supabase.from('engagement_recordings').delete().eq('id', data.id)
+    return NextResponse.json({ error: `Failed to generate upload URL: ${signedUrlError.message}` }, { status: 500 })
+  }
+
+  return NextResponse.json({
+    recording: data,
+    final_storage_path: storagePath,
+    signed_upload_url: signedUrlData.signedUrl,
+    token: signedUrlData.token,
+  })
 }

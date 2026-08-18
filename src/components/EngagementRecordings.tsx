@@ -28,6 +28,9 @@ type Recording = {
   duration_seconds: number | null
   total_chunks: number
   final_storage_path: string | null
+  source_type: string
+  mime_type: string | null
+  container: string | null
   markers: Marker[]
   transcript: Transcript | null
   observations: TranscriptObservation[]
@@ -445,6 +448,11 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
   const [expandedCandidate, setExpandedCandidate] = useState<string | null>(null)
   const [focusedEvidence, setFocusedEvidence] = useState<{ transcriptId: string; utteranceIds: string[] } | null>(null)
   const [reviewStatus, setReviewStatus] = useState<Record<string, 'accepting' | 'rejecting'>>({})
+  const [uploading, setUploading] = useState(false)
+  const [uploadPhase, setUploadPhase] = useState<string>('')
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const scopeKey = useMemo(() => (clientId ? `client:${clientId}` : `project:${projectId}`), [clientId, projectId])
 
@@ -655,6 +663,124 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
     }
   }
 
+  const handleFileSelect = async (file: File | null) => {
+    if (!file) return
+
+    if (!projectId) {
+      alert('Upload requires a project context.')
+      return
+    }
+
+    const validTypes = ['video/mkv', 'video/mp4', 'video/webm', 'video/quicktime']
+    if (!validTypes.includes(file.type) && !file.name.toLowerCase().match(/\.(mkv|mp4|webm|mov)$/)) {
+      alert('Unsupported file type. Please upload .mkv, .mp4, or .webm files.')
+      return
+    }
+
+    if (file.size === 0) {
+      alert('File is empty (zero bytes). Please choose a valid recording.')
+      return
+    }
+
+    if (file.size > 500 * 1024 * 1024) {
+      alert('File is too large. Maximum size is 500MB.')
+      return
+    }
+
+    setUploading(true)
+    setUploadError(null)
+    setUploadPhase('Creating recording record…')
+
+    let recordingId: string | null = null
+
+    try {
+      const extMatch = file.name.toLowerCase().match(/\.([^.]+)$/)
+      const container = extMatch ? extMatch[1] : ''
+
+      // Step 1: Create recording row + get signed upload URL
+      const createRes = await fetch('/api/admin/recordings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: projectId,
+          title: file.name.replace(/\.[^.]*$/, '') || 'Uploaded Recording',
+          session_type: 'uploaded_video',
+          consent_given: true,
+          source_type: 'uploaded_video',
+          mime_type: file.type,
+          container,
+        }),
+      })
+
+      const createPayload = await createRes.json()
+      if (!createRes.ok) throw new Error(createPayload.error || 'Failed to create recording')
+
+      recordingId = createPayload.recording.id
+
+      // Step 2: Compute SHA-256 checksum in browser
+      setUploadPhase('Computing file checksum…')
+      const checksum = await computeFileChecksum(file)
+
+      // Step 3: Upload directly to Supabase Storage via signed URL
+      // storage-js wraps Blob/File bodies in FormData with an empty field name
+      setUploadPhase('Uploading to storage…')
+      const uploadFormData = new FormData()
+      uploadFormData.append('cacheControl', '3600')
+      uploadFormData.append('', file)
+
+      const uploadRes = await fetch(createPayload.signed_upload_url, {
+        method: 'PUT',
+        body: uploadFormData,
+      })
+
+      if (!uploadRes.ok) {
+        const text = await uploadRes.text()
+        throw new Error(`Storage upload failed (${uploadRes.status}): ${text}`)
+      }
+
+      // Step 4: Finalize — confirm upload, set path + checksum
+      setUploadPhase('Finalizing…')
+      const finalizeRes = await fetch(`/api/admin/recordings/${recordingId}/finalize-upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          size_bytes: file.size,
+          checksum,
+          mime_type: file.type,
+        }),
+      })
+
+      const finalizePayload = await finalizeRes.json()
+      if (!finalizeRes.ok) throw new Error(finalizePayload.error || 'Failed to finalize upload')
+
+      setUploadPhase('')
+      await loadRecordings()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Upload failed'
+      setUploadError(message)
+      setUploadPhase('')
+
+      // Rollback: cancel the recording row + any orphaned storage file
+      if (recordingId) {
+        try {
+          await fetch(`/api/admin/recordings/${recordingId}/cancel-upload`, { method: 'POST' })
+        } catch {
+          // Best-effort cleanup — don't mask the original error
+        }
+      }
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  async function computeFileChecksum(file: File): Promise<string> {
+    const arrayBuffer = await file.arrayBuffer()
+    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
+  }
+
   async function transcribeRecording(recordingId: string) {
     setTranscribingId(recordingId)
     try {
@@ -858,7 +984,11 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
   }
 
   return (
-    <section className="bg-white border border-[#290D47]/15 rounded-2xl p-6 shadow-sm">
+    <section
+      className="bg-white border border-[#290D47]/15 rounded-2xl p-6 shadow-sm"
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => e.preventDefault()}
+    >
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
           <h2 className="text-xl font-semibold text-[#1A0F2E]">Engagement Recordings</h2>
@@ -878,6 +1008,50 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
           </Link>
         </div>
       </div>
+
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => { if (!uploading) fileInputRef.current?.click() }}
+        onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !uploading) { e.preventDefault(); fileInputRef.current?.click() } }}
+        onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true) }}
+        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true) }}
+        onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false) }}
+        onDrop={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setIsDragging(false)
+          if (uploading) return
+          const file = e.dataTransfer.files?.[0] ?? null
+          void handleFileSelect(file)
+        }}
+        className={`mt-4 p-6 rounded-lg border border-dashed transition-colors ${uploading ? 'cursor-wait opacity-70' : 'cursor-pointer'} ${isDragging ? 'border-[#00F5E4] bg-[#00F5E4]/5' : 'border-[#6B6785]/50 hover:border-[#6B6785]'}`}
+      >
+        <svg className="w-6 h-6 text-[#6B6785] mb-3 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+        </svg>
+        <p className="text-center text-sm text-[#6B6785]">
+          {uploading ? 'Uploading…' : isDragging ? 'Drop to upload' : 'Upload a recording'}
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="video/mkv,video/mp4,video/webm,audio/*,video/*"
+          className="hidden"
+          onChange={(e) => void handleFileSelect(e.target.files?.[0] ?? null)}
+        />
+        <p className="text-center text-xs text-[#6B6785] mt-2">.mkv, .mp4, .webm · max 500MB · or drag &amp; drop here</p>
+      </div>
+
+      {uploading && (
+        <div className="mt-2 flex items-center justify-center gap-2 text-sm text-[#6B6785]">
+          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[#6B6785]/30 border-t-[#290D47]" />
+          {uploadPhase || 'Uploading…'}
+        </div>
+      )}
+      {uploadError && (
+        <p className="mt-2 text-center text-sm text-red-600">{uploadError}</p>
+      )}
 
       {loading ? (
         <p className="text-[#6B6785] text-center py-8">Loading recordings...</p>
@@ -910,6 +1084,7 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
                       <span>Duration: {formatDuration(recording.duration_seconds)}</span>
                       <span>Chunks: {recording.total_chunks}</span>
                       <span>{recording.consent_given ? '✓ Consent' : 'No consent'}</span>
+                      {recording.source_type && <span className="ml-2 text-xs font-medium text-[#6B6785]">Source: {recording.source_type}</span>}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
