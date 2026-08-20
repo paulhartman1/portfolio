@@ -4,6 +4,7 @@ export const CANDIDATE_TYPES = [
   'contradiction',
   'knowledge_gap',
   'knowledge_transfer_risk',
+  'action_item',
 ] as const
 
 export type CandidateType = (typeof CANDIDATE_TYPES)[number]

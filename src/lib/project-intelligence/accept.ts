@@ -170,6 +170,46 @@ export async function acceptCandidate(
         })
         .eq('id', candidateId)
       if (updateError) throw updateError
+    } else if (candidate.type === 'action_item') {
+      const { data: transcriptData, error: transcriptError } = await supabase
+        .from('engagement_transcripts')
+        .select('recording_id, utterances')
+        .eq('id', transcriptId)
+        .maybeSingle()
+      if (transcriptError) throw transcriptError
+      const recordingId = ((transcriptData as { recording_id?: string } | null)?.recording_id) || null
+      const utterances = (((transcriptData as { utterances?: Utterance[] } | null)?.utterances) || []) as Utterance[]
+
+      const indexById = new Map(utterances.map((utterance, index) => [utterance.id, index]))
+      const relevantEvidence = (candidate.project_intelligence_candidate_evidence || [])
+        .filter((evidence) => evidence.transcript_id === transcriptId)
+        .flatMap((evidence) => evidence.utterance_ids.map((id) => indexById.get(id)).filter((index): index is number => typeof index === 'number'))
+      const firstIndex = relevantEvidence.length > 0 ? Math.min(...relevantEvidence) : -1
+      const timestampSeconds = firstIndex >= 0 ? (utterances[firstIndex].start ?? 0) : 0
+
+      if (recordingId) {
+        const { error: markerError } = await supabase
+          .from('engagement_session_notes')
+          .insert({
+            recording_id: recordingId,
+            note_type: 'action',
+            note_text: candidate.content,
+            timestamp_seconds: timestampSeconds,
+            created_by: reviewedBy,
+          })
+        if (markerError) throw markerError
+      }
+
+      const { error: updateError } = await supabase
+        .from('project_intelligence_candidates')
+        .update({
+          status: 'accepted',
+          reviewed_by: reviewedBy,
+          reviewed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', candidateId)
+      if (updateError) throw updateError
     } else {
       const { error: updateError } = await supabase
         .from('project_intelligence_candidates')

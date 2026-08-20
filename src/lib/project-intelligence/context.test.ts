@@ -36,7 +36,7 @@ function baseInput(): ProjectContextInput {
 describe('buildSystemPrompt', () => {
   it('mentions every supported candidate type', () => {
     const prompt = buildSystemPrompt()
-    for (const type of ['follow_up_question', 'observation', 'contradiction', 'knowledge_gap', 'knowledge_transfer_risk']) {
+    for (const type of ['follow_up_question', 'observation', 'contradiction', 'knowledge_gap', 'knowledge_transfer_risk', 'action_item']) {
       expect(prompt).toContain(type)
     }
   })

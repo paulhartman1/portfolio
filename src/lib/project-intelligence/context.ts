@@ -59,6 +59,7 @@ const TYPE_GUIDANCE: Record<CandidateType, string> = {
   contradiction: 'A tension where this interview conflicts with earlier evidence or another person mention of the same process.',
   knowledge_gap: 'Something we still do not know, such as who can perform a task when a named person is unavailable.',
   knowledge_transfer_risk: 'A responsibility likely to become unowned because it relies on one person or undocumented knowledge.',
+  action_item: 'A concrete piece of work this interview implies, either a commitment a participant stated or follow-up work CGT should take (document a gap, investigate a contradiction, run a follow-up session).',
 }
 
 export function buildSystemPrompt(): string {
@@ -81,13 +82,14 @@ export function buildSystemPrompt(): string {
     '- Missing failure paths: happy-path descriptions without the exceptions.',
     '- Hypothesis evidence: statements that strengthen, weaken, or complicate existing hypotheses.',
     '- Useful follow-up questions: questions that would materially increase understanding.',
+    '- Action items: work someone committed to in the interview, or work the interviewer should take away from this session.',
     '',
     'You must respond ONLY with JSON.',
     'The JSON must have the shape:',
     '{',
     '  "candidates": [',
     '    {',
-    '      "type": "follow_up_question" | "observation" | "contradiction" | "knowledge_gap" | "knowledge_transfer_risk",',
+    '      "type": "follow_up_question" | "observation" | "contradiction" | "knowledge_gap" | "knowledge_transfer_risk" | "action_item",',
     '      "content": "the suggestion in one precise sentence",',
     '      "reasoningSummary": "why CGT thinks this, naming people and process elements, no fabricated detail",',
     '      "confidence": 0.0 to 1.0,',

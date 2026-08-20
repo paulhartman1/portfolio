@@ -96,7 +96,7 @@ type IntelligenceCandidate = {
   id: string
   project_id: string
   transcript_id: string
-  type: 'follow_up_question' | 'observation' | 'contradiction' | 'knowledge_gap' | 'knowledge_transfer_risk'
+  type: 'follow_up_question' | 'observation' | 'contradiction' | 'knowledge_gap' | 'knowledge_transfer_risk' | 'action_item'
   content: string
   reasoning_summary: string | null
   confidence: number | null
@@ -114,6 +114,7 @@ const intelligenceTypeStyles: Record<IntelligenceCandidate['type'], { badge: str
   contradiction: { badge: 'bg-red-100 text-red-800', label: 'Contradiction' },
   knowledge_gap: { badge: 'bg-amber-100 text-amber-800', label: 'Knowledge gap' },
   knowledge_transfer_risk: { badge: 'bg-slate-700 text-white', label: 'Knowledge-transfer risk' },
+  action_item: { badge: 'bg-green-100 text-green-800', label: 'Action item' },
 }
 
 type Playback = {

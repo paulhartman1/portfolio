@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 type Call = { op: string; table: string; values?: unknown; col?: string; val?: unknown }
 
-function makeClient(options: { candidate: unknown; utterances: unknown[] }) {
+function makeClient(options: { candidate: unknown; utterances: unknown[]; recordingId?: string }) {
   const calls: Call[] = []
   let table = ''
 
@@ -21,7 +21,7 @@ function makeClient(options: { candidate: unknown; utterances: unknown[] }) {
     },
     maybeSingle() {
       if (table === 'project_intelligence_candidates') return Promise.resolve({ data: options.candidate, error: null })
-      if (table === 'engagement_transcripts') return Promise.resolve({ data: { utterances: options.utterances }, error: null })
+      if (table === 'engagement_transcripts') return Promise.resolve({ data: { recording_id: options.recordingId ?? null, utterances: options.utterances }, error: null })
       return Promise.resolve({ data: null, error: null })
     },
     single() {
@@ -151,6 +151,47 @@ describe('acceptCandidate (other types + guardrails)', () => {
     expect(fake.calls.some((call) => call.op === 'insert' && call.table === 'transcript_observations')).toBe(false)
     const candUpdate = fake.calls.find((call) => call.op === 'update' && call.table === 'project_intelligence_candidates')
     expect((candUpdate?.values as Record<string, unknown>).status).toBe('accepted')
+  })
+
+  it('accepts an action_item by creating a visible session marker anchored at the evidence', async () => {
+    const { acceptCandidate } = await import('./accept')
+    const candidate = {
+      ...observationCandidate([{ transcript_id: 't-current', utterance_ids: ['u2'], role: 'supporting' }]),
+      type: 'action_item',
+      content: 'Document how affected code is located before Rich leaves.',
+    }
+    const fake = makeClient({ candidate, utterances, recordingId: 'rec-1' })
+    const result = await acceptCandidate(fake as never, { candidateId: 'cand-1', transcriptId: 't-current', reviewedBy: 'admin-1' })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.acceptedObservationId).toBeNull()
+
+    const markerInsert = fake.calls.find((call) => call.op === 'insert' && call.table === 'engagement_session_notes')
+    const marker = markerInsert?.values as Record<string, unknown>
+    expect(marker.recording_id).toBe('rec-1')
+    expect(marker.note_type).toBe('action')
+    expect(marker.note_text).toBe('Document how affected code is located before Rich leaves.')
+    expect(marker.timestamp_seconds).toBe(3)
+    expect(marker.created_by).toBe('admin-1')
+
+    const candUpdate = fake.calls.find((call) => call.op === 'update' && call.table === 'project_intelligence_candidates')
+    const update = candUpdate?.values as Record<string, unknown>
+    expect(update.status).toBe('accepted')
+    expect(update.reviewed_by).toBe('admin-1')
+  })
+
+  it('accepts an action_item anchored at 0 when evidence has no current-transcript utterances', async () => {
+    const { acceptCandidate } = await import('./accept')
+    const candidate = {
+      ...observationCandidate([{ transcript_id: 't-other', utterance_ids: ['x1'], role: 'supporting' }]),
+      type: 'action_item',
+      content: 'Run a follow-up session on ownership.',
+    }
+    const fake = makeClient({ candidate, utterances, recordingId: 'rec-1' })
+    const result = await acceptCandidate(fake as never, { candidateId: 'cand-1', transcriptId: 't-current', reviewedBy: 'admin-1' })
+    expect(result.ok).toBe(true)
+    const markerInsert = fake.calls.find((call) => call.op === 'insert' && call.table === 'engagement_session_notes')
+    expect((markerInsert?.values as Record<string, unknown>).timestamp_seconds).toBe(0)
   })
 
   it('rejects a candidate that was already reviewed', async () => {
