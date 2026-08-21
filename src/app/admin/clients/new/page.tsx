@@ -24,6 +24,8 @@ export default function AddClientPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState('')
+  const [inviteLink, setInviteLink] = useState('')
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     loadProjects()
@@ -72,14 +74,7 @@ export default function AddClientPage() {
       if (!res.ok) throw new Error(result.error || 'Failed to create client')
 
       setStatus('success')
-      const roleText = formData.is_admin ? 'Admin' : 'Client'
-      const projectText = selectedProjects.length > 0 ? ` and assigned to ${selectedProjects.length} project(s)` : ''
-      setMessage(`${roleText} invited! An email with a magic login link has been sent to ${formData.email}${projectText}.`)
-      
-      setTimeout(() => {
-        router.push('/admin')
-      }, 2000)
-      
+      setInviteLink(result.actionLink || '')
     } catch (error) {
       console.error('Error inviting client:', error)
       setStatus('error')
@@ -105,6 +100,33 @@ export default function AddClientPage() {
     )
   }
 
+  const copyInviteLink = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteLink)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (error) {
+      console.error('Failed to copy invite link:', error)
+    }
+  }
+
+  const resetForm = () => {
+    setFormData({
+      email: '',
+      first_name: '',
+      last_name: '',
+      company: '',
+      phone: '',
+      pronouns: '',
+      is_admin: false
+    })
+    setSelectedProjects([])
+    setStatus('idle')
+    setMessage('')
+    setInviteLink('')
+    setCopied(false)
+  }
+
   return (
     <div>
       <div className="mb-8">
@@ -113,6 +135,50 @@ export default function AddClientPage() {
       </div>
 
       <div className="bg-white border border-[#290D47]/15 rounded-2xl p-6 max-w-2xl shadow-sm">
+        {status === 'success' ? (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-[#1A0F2E] mb-2 font-semibold">Invite Link</label>
+              <p className="text-[#6B6785] text-sm mb-3">
+                Copy this link and send it to the client yourself.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={inviteLink}
+                  onFocus={(e) => e.target.select()}
+                  className="w-full px-4 py-2 rounded-lg bg-[#F8F7F5] border border-[#E8E4EF] text-[#1A0F2E] text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={copyInviteLink}
+                  className="px-4 py-2 rounded-lg bg-[#290D47] text-white font-semibold hover:opacity-90 whitespace-nowrap"
+                >
+                  {copied ? 'Copied!' : 'Copy Link'}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-4 pt-4">
+              <button
+                type="button"
+                onClick={resetForm}
+                className="px-6 py-3 rounded-lg bg-[#290D47] text-white font-semibold hover:opacity-90"
+              >
+                Add Another Client
+              </button>
+
+              <button
+                type="button"
+                onClick={() => router.push('/admin')}
+                className="px-6 py-3 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] hover:bg-[#F8F7F5]"
+              >
+                Back to Admin
+              </button>
+            </div>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-[#1A0F2E] mb-2">Email *</label>
@@ -129,7 +195,7 @@ export default function AddClientPage() {
 
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
             <p className="text-[#1A0F2E] text-sm">
-              <strong>🔐 Magic Link Login:</strong> No password needed. The client will receive an email with a secure login link.
+              <strong>🔐 Magic Link Login:</strong> No password needed. You&apos;ll get a secure login link to copy and send to the client yourself.
             </p>
           </div>
 
@@ -242,12 +308,6 @@ export default function AddClientPage() {
             </div>
           )}
 
-          {status === 'success' && (
-            <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-green-800">
-              {message}
-            </div>
-          )}
-
           {status === 'error' && (
             <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-800">
               {message}
@@ -272,6 +332,7 @@ export default function AddClientPage() {
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   )

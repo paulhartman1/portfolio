@@ -233,10 +233,17 @@ pass = "env(SUPABASE_GMAIL_APP_PASSWORD)"
 admin_email = "paulhartman.bassist@gmail.com"
 sender_name = "Love On Dev"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# Custom templates point the confirmation link at our own /api/auth/callback
+# (via token_hash) instead of Supabase's hosted /auth/v1/verify endpoint, so
+# expired-link errors are caught by our app instead of bouncing to the bare
+# Site URL with an unrecoverable error hash.
+[auth.email.template.invite]
+subject = "You've been invited to LoveOnDev"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.magic_link]
+subject = "Your LoveOnDev sign-in link"
+content_path = "./supabase/templates/magic_link.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

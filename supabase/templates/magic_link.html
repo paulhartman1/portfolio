@@ -1,0 +1,7 @@
+<h2>Your LoveOnDev sign-in link</h2>
+
+<p>Click the link below to sign in. No password needed.</p>
+
+<p><a href="{{ .SiteURL }}/api/auth/callback?token_hash={{ .TokenHash }}&type=magiclink&email={{ .Email }}">Sign in</a></p>
+
+<p>This link expires shortly. If it has expired, request a new one from the sign-in page and we'll send a fresh link automatically.</p>

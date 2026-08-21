@@ -163,12 +163,19 @@ function WelcomeContent() {
       } else {
         // Try to handle implicit flow or PKCE flow
         handleInviteToken().then(() => {
-          // If still no session after handling tokens, set timeout
+          // If still no session after handling tokens, the link has likely
+          // expired. Bounce to the link-expired page, which automatically
+          // sends a fresh invite.
           supabase.auth.getSession().then(({ data: { session: newSession } }) => {
             if (!newSession) {
               timeoutId = setTimeout(() => {
-                setErrorMessage("Unable to establish session. The invite link may have expired.");
-                setIsLoading(false);
+                const email = searchParams.get("email");
+                if (email) {
+                  router.replace(`/auth/link-expired?email=${encodeURIComponent(email)}&type=invite`);
+                } else {
+                  setErrorMessage("Unable to establish session. The invite link may have expired.");
+                  setIsLoading(false);
+                }
               }, 5000);
             }
           });
@@ -180,7 +187,7 @@ function WelcomeContent() {
       subscription.unsubscribe();
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   const handleContinue = async () => {
     // Mark that user has seen the welcome page

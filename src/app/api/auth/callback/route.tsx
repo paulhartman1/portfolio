@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
   const type = asEmailOtpType(rawType)
   const requestedNext = searchParams.get('next')
   const safeNext = requestedNext?.startsWith('/') ? requestedNext : null
+  const email = searchParams.get('email')
   console.log('[Auth Callback] Code:', code ? 'present' : 'missing', 'TokenHash:', tokenHash ? 'present' : 'missing', 'Type:', rawType)
 
   if (!code && !tokenHash) {
@@ -72,13 +73,23 @@ export async function GET(req: NextRequest) {
   // token_hash is the primary path. It carries no browser state, so it works
   // for emails sent from the Supabase dashboard and for links opened on a
   // different device or browser than the one that requested them.
+  // When a magic link / invite link has expired, bounce to a page that
+  // automatically resends a fresh one instead of making the user ask for it.
+  function expiredRedirectUrl(errorCode: string, linkType: string | null): URL | null {
+    if (errorCode !== 'link_expired' || !email) return null
+    const resendType = linkType === 'invite' ? 'invite' : 'magiclink'
+    return new URL(`/auth/link-expired?email=${encodeURIComponent(email)}&type=${resendType}`, req.url)
+  }
+
   if (tokenHash && type) {
     console.log('[Auth Callback] Verifying token hash, type:', type)
     const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
     if (error || !data.session) {
       console.error('[Auth Callback] Token verification failed:', error)
-      const code = failureCode(error)
-      return NextResponse.redirect(new URL(`/auth/login?error=${code}`, req.url))
+      const errCode = failureCode(error)
+      const expiredUrl = expiredRedirectUrl(errCode, type)
+      if (expiredUrl) return NextResponse.redirect(expiredUrl)
+      return NextResponse.redirect(new URL(`/auth/login?error=${errCode}`, req.url))
     }
     console.log('[Auth Callback] Token verification successful, user:', data.session.user.email)
   } else if (tokenHash && !type) {
@@ -91,7 +102,10 @@ export async function GET(req: NextRequest) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     if (error || !data.session) {
       console.error('[Auth Callback] Exchange failed:', error)
-      return NextResponse.redirect(new URL(`/auth/login?error=${failureCode(error)}`, req.url))
+      const errCode = failureCode(error)
+      const expiredUrl = expiredRedirectUrl(errCode, rawType)
+      if (expiredUrl) return NextResponse.redirect(expiredUrl)
+      return NextResponse.redirect(new URL(`/auth/login?error=${errCode}`, req.url))
     }
     console.log('[Auth Callback] Session exchange successful, user:', data.session.user.email)
   }

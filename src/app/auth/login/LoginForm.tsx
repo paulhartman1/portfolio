@@ -96,7 +96,7 @@ export default function LoginForm({ brand = 'loveondev' }: { brand?: LoginBrand 
     setErrorMsg(null)
 
     try {
-      const redirectTo = `${window.location.origin}/api/auth/callback`
+      const redirectTo = `${window.location.origin}/api/auth/callback?email=${encodeURIComponent(email)}`
       console.log('[Magic Link] Sending to:', email)
       console.log('[Magic Link] Redirect URL:', redirectTo)
       
