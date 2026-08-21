@@ -46,8 +46,9 @@ export default async function ClientPortalPage({
   const pendingApproval = pendingApprovals[0]
   const recentForClient = (updates || []).slice(0, 3)
 
-  // No dedicated current-focus field. Do not invent from latest activity.
-  const hasCurrentWorkSource = false
+  // Current focus comes from projects.description when set. Do not invent from latest activity.
+  const currentFocus = project.description?.trim() || ''
+  const hasCurrentWorkSource = Boolean(currentFocus)
 
   // Fetch actionable proposals (status = 'sent')
   const { data: actionableProposals } = await supabase
@@ -155,7 +156,9 @@ export default async function ClientPortalPage({
           Current focus
         </h2>
 
-        {hasCurrentWorkSource ? null : (
+        {hasCurrentWorkSource ? (
+          <p className="mt-3 text-base text-[#1A0F2E] leading-relaxed">{currentFocus}</p>
+        ) : (
           <p className="mt-3 text-base text-[#6B6785] leading-relaxed">
             We&apos;ll describe what we&apos;re working on together here when it&apos;s set.
           </p>
