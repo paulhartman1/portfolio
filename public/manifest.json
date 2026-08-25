@@ -1,0 +1,31 @@
+{
+  "name": "Love On Dev Admin",
+  "short_name": "LoveOnDev Admin",
+  "description": "Admin dashboard for managing client projects, portals, and engagements.",
+  "start_url": "/admin/projects",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#290D47",
+  "theme_color": "#290D47",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
