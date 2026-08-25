@@ -19,6 +19,7 @@ type Project = {
   github_branch: string | null
   last_commit_sha: string | null
   proposal_slug: string | null
+  notification_email: string | null
 }
 
 type ProjectUpdate = {
@@ -87,6 +88,10 @@ export default function ManageProjectPage() {
   const [proposalSlug, setProposalSlug] = useState('')
   const [savedProposalSlug, setSavedProposalSlug] = useState('')
   const [savingProposal, setSavingProposal] = useState(false)
+  const [notificationEmail, setNotificationEmail] = useState('')
+  const [savingNotificationEmail, setSavingNotificationEmail] = useState(false)
+  const [sendEmailNotification, setSendEmailNotification] = useState(false)
+  const [notifyRecipientIds, setNotifyRecipientIds] = useState<string[]>([])
 
   const selectedClient = useMemo(
     () => clients.find((client) => client.id === selectedClientId) || null,
@@ -115,7 +120,7 @@ export default function ManageProjectPage() {
 
     const { data: projectData, error: projectError} = await supabaseBrowser
       .from('projects')
-      .select('id, name, description, subdomain, url, status, created_at, github_repo, github_branch, last_commit_sha, proposal_slug')
+      .select('id, name, description, subdomain, url, status, created_at, github_repo, github_branch, last_commit_sha, proposal_slug, notification_email')
       .eq('id', projectId)
       .single()
 
@@ -130,6 +135,7 @@ export default function ManageProjectPage() {
     setGithubBranch(projectData.github_branch || 'main')
     setProposalSlug(projectData.proposal_slug || '')
     setSavedProposalSlug(projectData.proposal_slug || '')
+    setNotificationEmail(projectData.notification_email || '')
 
     const { data: clientRows, error: clientError } = await supabaseBrowser
       .from('project_clients')
@@ -273,6 +279,35 @@ export default function ManageProjectPage() {
     }
   }
 
+  async function saveNotificationEmail() {
+    setSavingNotificationEmail(true)
+
+    try {
+      const { error } = await supabaseBrowser
+        .from('projects')
+        .update({ notification_email: notificationEmail.trim() || null })
+        .eq('id', projectId)
+
+      if (error) throw error
+
+      setProject((prev) => prev ? { ...prev, notification_email: notificationEmail.trim() || null } : null)
+      alert('Notification email saved successfully')
+    } catch (error) {
+      console.error('Error saving notification email:', error)
+      alert(error instanceof Error ? error.message : 'Failed to save notification email')
+    } finally {
+      setSavingNotificationEmail(false)
+    }
+  }
+
+  function toggleNotifyRecipient(clientId: string) {
+    setNotifyRecipientIds((current) =>
+      current.includes(clientId)
+        ? current.filter((id) => id !== clientId)
+        : [...current, clientId]
+    )
+  }
+
   async function sendMessage() {
     if (!messageText.trim() || !currentUserId) return
 
@@ -285,6 +320,9 @@ export default function ManageProjectPage() {
         project_id: projectId,
         sender_id: currentUserId,
         message: messageText.trim(),
+        notify_recipient_ids: sendEmailNotification && notifyRecipientIds.length > 0
+          ? notifyRecipientIds
+          : null,
       })
 
     if (error) {
@@ -296,7 +334,13 @@ export default function ManageProjectPage() {
 
     setMessageText('')
     setSendStatus('sent')
-    setNotice('Message sent.')
+    setNotice(
+      sendEmailNotification && notifyRecipientIds.length > 0
+        ? `Message sent and emailed to ${notifyRecipientIds.length} client${notifyRecipientIds.length > 1 ? 's' : ''}.`
+        : 'Message sent.'
+    )
+    setSendEmailNotification(false)
+    setNotifyRecipientIds([])
     await loadMessages()
   }
 
@@ -539,6 +583,32 @@ export default function ManageProjectPage() {
             </div>
 
             <div className="border-t border-[#E8E4EF] pt-4 mt-4">
+              <p className="text-[#6B6785] uppercase tracking-wide text-xs mb-3">Message Notifications</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[#6B6785] text-xs mb-1">Notification Email</label>
+                  <input
+                    type="email"
+                    value={notificationEmail}
+                    onChange={(e) => setNotificationEmail(e.target.value)}
+                    placeholder="team@loveondev.com"
+                    className="w-full px-3 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] text-sm placeholder:text-[#6B6785]"
+                  />
+                  <p className="text-[#6B6785] text-xs mt-1">
+                    Notified whenever a client sends a message on this project.
+                  </p>
+                </div>
+                <button
+                  onClick={saveNotificationEmail}
+                  disabled={savingNotificationEmail}
+                  className="w-full px-4 py-2 rounded-lg bg-[#290D47] hover:opacity-90 text-white text-sm font-medium disabled:opacity-50"
+                >
+                  {savingNotificationEmail ? 'Saving...' : 'Save Notification Email'}
+                </button>
+              </div>
+            </div>
+
+            <div className="border-t border-[#E8E4EF] pt-4 mt-4">
               <p className="text-[#6B6785] uppercase tracking-wide text-xs mb-3">GitHub Integration</p>
               <div className="space-y-3">
                 <div>
@@ -661,6 +731,45 @@ export default function ManageProjectPage() {
               className="w-full px-4 py-3 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] placeholder:text-[#6B6785] resize-none focus:outline-none focus:border-[#290D47] disabled:opacity-50"
               rows={4}
             />
+
+            <div className="rounded-lg border border-[#E8E4EF] bg-[#F8F7F5] p-3">
+              <label className="flex items-center gap-2 text-sm text-[#1A0F2E] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={sendEmailNotification}
+                  onChange={(e) => {
+                    setSendEmailNotification(e.target.checked)
+                    if (!e.target.checked) setNotifyRecipientIds([])
+                  }}
+                  className="rounded"
+                />
+                Email this message to client(s)?
+              </label>
+
+              {sendEmailNotification && (
+                <div className="mt-3 space-y-2">
+                  {clients.length === 0 ? (
+                    <p className="text-[#6B6785] text-xs">No clients are assigned to this project yet.</p>
+                  ) : (
+                    clients.map((client) => (
+                      <label
+                        key={client.id}
+                        className="flex items-center gap-2 text-sm text-[#1A0F2E] cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={notifyRecipientIds.includes(client.id)}
+                          onChange={() => toggleNotifyRecipient(client.id)}
+                          className="rounded"
+                        />
+                        {client.display_name || client.email}
+                        <span className="text-[#6B6785] text-xs">({client.email})</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
 
             {notice && (
               <p className={`text-sm ${sendStatus === 'error' ? 'text-red-700' : 'text-green-700'}`}>
