@@ -71,6 +71,8 @@ This is the direct answer to "give it a CRF Christie's already done, in its undo
 
 **Temporal rule:** Where practical, the system receives only code/material that existed before the held-out request was answered. Cases that can't be bounded well enough are excluded or explicitly marked contaminated.
 
+**Source retrieval from Visual SourceSafe:** Alpine takes a snapshot of all source after each release. To bound code to the correct pre-CRF state: find the release where the CRF was implemented, then pull the snapshot from the release immediately prior. This provides the source as it existed before the change, resolving the temporal bounding concern without additional infrastructure.
+
 ### Initial Learning Cycle
 
 Run five deliberately varied held-out cases first. Add up to five more only if the first five don't expose a fatal flaw or a clear next question.

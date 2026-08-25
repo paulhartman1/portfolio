@@ -376,6 +376,13 @@ export default function AlpineProposalContent() {
             that existed before the held-out request was answered. Cases that can&apos;t be bounded
             well enough are excluded or explicitly marked contaminated.
           </p>
+          <p>
+            <strong>Source retrieval from Visual SourceSafe:</strong> Alpine takes a snapshot of all
+            source after each release. To bound code to the correct pre-CRF state: find the release
+            where the CRF was implemented, then pull the snapshot from the release immediately prior.
+            This provides the source as it existed before the change, resolving the temporal bounding
+            concern without additional infrastructure.
+          </p>
 
           <h3>Initial Learning Cycle</h3>
           <p>
