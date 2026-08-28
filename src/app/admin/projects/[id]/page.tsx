@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation'
 import { supabaseBrowser } from '@/utils/supabase/client'
 import EngagementRecordings from '@/components/EngagementRecordings'
 import { AskCgt } from '@/components/AskCgt'
+import ProjectExperiments from '@/components/ProjectExperiments'
 
 type Project = {
   id: string
@@ -848,6 +849,10 @@ export default function ManageProjectPage() {
             )}
           </div>
         </section>
+      </div>
+
+      <div className="mt-6">
+        <ProjectExperiments projectId={projectId} />
       </div>
 
       <div className="mt-6">

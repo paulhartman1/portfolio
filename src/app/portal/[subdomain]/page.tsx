@@ -64,6 +64,13 @@ export default async function ClientPortalPage({
     .eq('status', 'sent')
     .order('sent_at', { ascending: false, nullsFirst: false })
 
+  // Experiments visible to the client (RLS restricts to non-draft).
+  const { data: experiments } = await supabase
+    .from('experiments')
+    .select('id, code, title, slug, status')
+    .eq('project_id', project.id)
+    .order('experiment_number', { ascending: true })
+
   const showWorkingSite = Boolean(project.url)
   const showReviewFeedback = openComments > 0
   const hasActionableProposal = (actionableProposals?.length ?? 0) > 0
@@ -198,6 +205,35 @@ export default async function ClientPortalPage({
           </div>
         )}
       </section>
+
+      {/* Experiments: the inquiries running on this engagement */}
+      {experiments && experiments.length > 0 && (
+        <section className="border-t border-[#E8E4EF] pt-8">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-[#6B6785]">
+            Experiments
+          </h2>
+          <ul className="mt-4 divide-y divide-[#E8E4EF]">
+            {experiments.map((exp) => (
+              <li key={exp.id} className="py-3 first:pt-0">
+                <Link
+                  href={`/portal/${subdomain}/experiments/${exp.slug}`}
+                  className="flex items-center justify-between gap-3 group"
+                >
+                  <span className="flex items-baseline gap-2 min-w-0">
+                    <span className="font-mono text-xs text-[#6B6785]">{exp.code}</span>
+                    <span className="text-sm font-medium text-[#1A0F2E] truncate group-hover:underline underline-offset-2">
+                      {exp.title}
+                    </span>
+                  </span>
+                  <span className="text-xs text-[#6B6785] capitalize shrink-0">
+                    {exp.status}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Secondary: recent feed */}
       <section className="border-t border-[#E8E4EF] pt-8">
