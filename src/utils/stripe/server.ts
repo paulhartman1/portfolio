@@ -63,6 +63,41 @@ export async function createCheckoutSession(
   return session;
 }
 
+export type CreatePaymentLinkParams = {
+  amount: number; // in cents
+  name: string;
+  metadata: Record<string, string>;
+};
+
+/**
+ * Creates a Stripe Payment Link for a specific amount
+ */
+export async function createPaymentLink(params: CreatePaymentLinkParams) {
+  const { amount, name, metadata } = params;
+
+  // 1. Create a Price first
+  const price = await stripe.prices.create({
+    currency: 'usd',
+    unit_amount: amount,
+    product_data: {
+      name,
+    },
+  });
+
+  // 2. Create the Payment Link
+  const paymentLink = await stripe.paymentLinks.create({
+    line_items: [
+      {
+        price: price.id,
+        quantity: 1,
+      },
+    ],
+    metadata,
+  });
+
+  return paymentLink;
+}
+
 /**
  * Retrieves a Checkout Session by ID
  */

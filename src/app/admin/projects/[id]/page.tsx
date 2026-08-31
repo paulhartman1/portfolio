@@ -537,12 +537,23 @@ export default function ManageProjectPage() {
 
             <div className="border-t border-[#E8E4EF] pt-4 mt-4">
               <p className="text-[#6B6785] uppercase tracking-wide text-xs mb-3">Actions</p>
-              <Link
-                href={`/admin/projects/${projectId}/payment-link`}
-                className="block w-full px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium text-center mb-4"
-              >
-                💳 Create Payment Link
-              </Link>
+              <div className="space-y-3">
+                <Link
+                  href={`/admin/projects/${projectId}/payment-link`}
+                  className="block w-full px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium text-center"
+                >
+                  💳 Create Payment Link
+                </Link>
+                {project.subdomain && (
+                  <Link
+                    href={`/portal/${project.subdomain}`}
+                    target="_blank"
+                    className="block w-full px-4 py-2 rounded-lg bg-white border border-[#290D47] text-[#290D47] hover:bg-[#290D47]/5 text-sm font-medium text-center"
+                  >
+                    👁️ View Client Portal
+                  </Link>
+                )}
+              </div>
             </div>
 
             <div className="border-t border-[#E8E4EF] pt-4 mt-4">

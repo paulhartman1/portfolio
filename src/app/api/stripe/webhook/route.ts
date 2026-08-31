@@ -76,6 +76,38 @@ export async function POST(request: NextRequest) {
         }
 
         console.log(`✅ Payment completed for session: ${session.id}`, updateData);
+
+        // Handle proposal deposit if present in metadata
+        if (session.metadata?.proposal_id && session.metadata?.type === 'proposal_deposit') {
+          console.log(`📄 Handling proposal deposit for proposal: ${session.metadata.proposal_id}`);
+          
+          // 1. Mark proposal as accepted
+          const { error: proposalError } = await supabase
+            .from('proposals')
+            .update({
+              status: 'accepted',
+              accepted_at: new Date().toISOString()
+            })
+            .eq('id', session.metadata.proposal_id);
+
+          if (proposalError) {
+            console.error('❌ Failed to update proposal status:', proposalError);
+          }
+
+          // 2. Activate project
+          if (session.metadata?.project_id) {
+            const { error: projectError } = await supabase
+              .from('projects')
+              .update({
+                status: 'active'
+              })
+              .eq('id', session.metadata.project_id);
+
+            if (projectError) {
+              console.error('❌ Failed to activate project:', projectError);
+            }
+          }
+        }
         break;
       }
 
