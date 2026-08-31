@@ -82,30 +82,56 @@ export default function StandardProposalContent({
       </section>
 
       <footer className="mt-16 text-center">
-        {stripeUrl ? (
-          <a
-            href={stripeUrl}
-            className="inline-flex items-center gap-2 px-8 py-4 bg-[#290D47] text-white rounded-full font-bold text-lg hover:scale-105 transition-transform shadow-xl no-underline"
-          >
-            <svg 
-              viewBox="0 0 24 24" 
-              width="20" 
-              height="20" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              fill="currentColor" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
+        <div className="flex flex-col items-center gap-6">
+          {stripeUrl ? (
+            <a
+              href={stripeUrl}
+              className="inline-flex items-center gap-2 px-8 py-4 bg-[#290D47] text-white rounded-full font-bold text-lg hover:scale-105 transition-transform shadow-xl no-underline"
             >
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-            </svg>
-            Accept & Pay Deposit
-          </a>
-        ) : (
-          <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 italic">
-            Proposal is pending finalized payment link.
+              <svg 
+                viewBox="0 0 24 24" 
+                width="20" 
+                height="20" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                fill="currentColor" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+              >
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+              Accept & Pay Deposit
+            </a>
+          ) : (
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 italic">
+              Proposal is pending finalized payment link.
+            </div>
+          )}
+
+          <div className="mt-4 pt-8 border-t border-[#ecf0f1] w-full max-w-sm">
+            <p className="text-sm text-[#7f8c8d] mb-4 italic">
+              Have questions or need adjustments to the scope?
+            </p>
+            <a 
+              href={`/portal/${subdomain}/messages?message=${encodeURIComponent(`Hi Paul, I've reviewed the "${title}" proposal and have some questions/adjustments:`)}`}
+              className="text-[#290D47] font-semibold hover:underline flex items-center justify-center gap-2"
+            >
+              <svg 
+                viewBox="0 0 24 24" 
+                width="16" 
+                height="16" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+              >
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+              Discuss this proposal
+            </a>
           </div>
-        )}
+        </div>
       </footer>
     </div>
   )

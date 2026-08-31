@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
+import { useParams, useSearchParams } from 'next/navigation'
 import { supabaseBrowser } from '@/utils/supabase/client'
 
 type Message = {
@@ -18,13 +18,15 @@ type Message = {
   }
 }
 
-export default function ClientMessagesPage() {
+function MessagesContent() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const subdomain = params.subdomain as string
+  const initialMessage = searchParams.get('message') || ''
 
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
-  const [newMessage, setNewMessage] = useState('')
+  const [newMessage, setNewMessage] = useState(initialMessage)
   const [sendingMessage, setSendingMessage] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [projectId, setProjectId] = useState<string | null>(null)
@@ -33,6 +35,12 @@ export default function ClientMessagesPage() {
     loadMessages()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subdomain])
+
+  useEffect(() => {
+    if (initialMessage) {
+      setNewMessage(initialMessage)
+    }
+  }, [initialMessage])
 
   async function loadMessages() {
     setLoading(true)
@@ -226,5 +234,13 @@ export default function ClientMessagesPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ClientMessagesPage() {
+  return (
+    <Suspense fallback={<div className="text-[#1A0F2E] text-center py-12">Loading messages...</div>}>
+      <MessagesContent />
+    </Suspense>
   )
 }
