@@ -121,17 +121,21 @@ export default function ProposalDetailPage() {
   }
 
   async function addVersion() {
-    if (!proposal || !newRoute.trim()) return
+    if (!proposal) return
     const nextNumber = (versions[versions.length - 1]?.version_number ?? 0) + 1
     const {
       data: { user },
     } = await supabaseBrowser.auth.getUser()
+
+    // Insert first with a placeholder route so we get a version id back,
+    // then patch the route to point at the generic renderer (or the
+    // admin-provided override for bespoke/experiment pages).
     const { data, error } = await supabaseBrowser
       .from('proposal_versions')
       .insert({
         proposal_id: proposal.id,
         version_number: nextNumber,
-        presentation_route: newRoute.trim(),
+        presentation_route: 'pending',
         created_by: user?.id ?? null,
       })
       .select('*')
@@ -140,13 +144,25 @@ export default function ProposalDetailPage() {
       alert('Could not add version: ' + error.message)
       return
     }
+
+    const finalRoute = newRoute.trim() || `version/${data.id}`
+    const { error: routeError } = await supabaseBrowser
+      .from('proposal_versions')
+      .update({ presentation_route: finalRoute })
+      .eq('id', data.id)
+    if (routeError) {
+      alert('Could not finalize version route: ' + routeError.message)
+      return
+    }
+    const finalizedVersion = { ...data, presentation_route: finalRoute } as ProposalVersion
+
     // Newest version becomes current.
     await supabaseBrowser
       .from('proposals')
-      .update({ current_version_id: data.id })
+      .update({ current_version_id: finalizedVersion.id })
       .eq('id', proposal.id)
-    setVersions([...versions, data as ProposalVersion])
-    setProposal({ ...proposal, current_version_id: data.id })
+    setVersions([...versions, finalizedVersion])
+    setProposal({ ...proposal, current_version_id: finalizedVersion.id })
     setNewRoute('')
   }
 
@@ -450,21 +466,24 @@ export default function ProposalDetailPage() {
                 ))}
               </ul>
             )}
-            <label className="block text-xs text-[#6B6785] mb-1">Add version — presentation route</label>
+            <label className="block text-xs text-[#6B6785] mb-1">
+              Add version — custom route (optional)
+            </label>
             <input
               value={newRoute}
               onChange={(e) => setNewRoute(e.target.value)}
-              placeholder="experiment/ai-implementation-context"
+              placeholder="Leave blank for standard proposal page"
               className="w-full px-3 py-2 rounded-lg bg-white border border-[#E8E4EF] text-sm mb-2"
             />
             <p className="text-[#6B6785] text-xs mb-2">
-              For an experiment proposal use <code>experiment/&lt;slug&gt;</code>. For a
-              bespoke page use its route folder name.
+              Leave blank to use the standard proposal page (scope, pricing, linked
+              experiments, and the Stripe deposit link — auto-generated). Only set a
+              custom route to point at a bespoke page, e.g.{' '}
+              <code>experiment/&lt;slug&gt;</code> or a hand-built folder name.
             </p>
             <button
               onClick={addVersion}
-              disabled={!newRoute.trim()}
-              className="w-full px-3 py-2 rounded-lg bg-[#290D47] text-white text-xs font-semibold hover:opacity-90 disabled:opacity-50"
+              className="w-full px-3 py-2 rounded-lg bg-[#290D47] text-white text-xs font-semibold hover:opacity-90"
             >
               Add version
             </button>
