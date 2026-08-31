@@ -47,7 +47,9 @@ export default function ProposalDetailPage() {
   const [currency, setCurrency] = useState('usd')
   const [timeline, setTimeline] = useState('')
   const [terms, setTerms] = useState('')
+  const [depositAmount, setDepositAmount] = useState('')
   const [newRoute, setNewRoute] = useState('')
+  const [generatingLink, setGeneratingLink] = useState(false)
 
   const load = useCallback(async () => {
     setLoadState('loading')
@@ -69,6 +71,7 @@ export default function ProposalDetailPage() {
     setCurrency(prop.currency || 'usd')
     setTimeline(prop.timeline || '')
     setTerms(prop.terms || '')
+    setDepositAmount(prop.deposit_amount != null ? String(prop.deposit_amount) : '')
 
     const [{ data: proj }, { data: vers }, { data: lnk }, { data: exps }] = await Promise.all([
       supabaseBrowser.from('projects').select('id, name, subdomain').eq('id', prop.project_id).single(),
@@ -102,6 +105,12 @@ export default function ProposalDetailPage() {
       setSaving(false)
       return
     }
+    const parsedDeposit = depositAmount.trim() === '' ? null : Number(depositAmount)
+    if (parsedDeposit != null && Number.isNaN(parsedDeposit)) {
+      setNotice('Deposit amount must be a number.')
+      setSaving(false)
+      return
+    }
     const update = {
       title: title.trim(),
       kind,
@@ -109,6 +118,7 @@ export default function ProposalDetailPage() {
       currency: currency.trim() || 'usd',
       timeline: timeline.trim() || null,
       terms: terms.trim() || null,
+      deposit_amount: parsedDeposit,
     }
     const { error } = await supabaseBrowser.from('proposals').update(update).eq('id', proposal.id)
     if (error) {
@@ -118,6 +128,28 @@ export default function ProposalDetailPage() {
       setProposal({ ...proposal, ...update } as Proposal)
     }
     setSaving(false)
+  }
+
+  async function generatePaymentLink(): Promise<boolean> {
+    if (!proposal) return false
+    setGeneratingLink(true)
+    try {
+      const response = await fetch(`/api/admin/proposals/${proposal.id}/payment-link`, {
+        method: 'POST',
+      })
+      const body = await response.json()
+      if (!response.ok) {
+        alert('Could not generate Stripe payment link: ' + (body.error || 'Unknown error'))
+        return false
+      }
+      setProposal((prev) => (prev ? { ...prev, stripe_payment_link_url: body.url } : prev))
+      return true
+    } catch (err) {
+      alert('Could not generate Stripe payment link: ' + (err instanceof Error ? err.message : 'Unknown error'))
+      return false
+    } finally {
+      setGeneratingLink(false)
+    }
   }
 
   async function addVersion() {
@@ -185,6 +217,24 @@ export default function ProposalDetailPage() {
       alert('Add a version (presentation) before sending.')
       return
     }
+
+    // Auto-generate the Stripe deposit link the moment a proposal goes out,
+    // so the client never sees a "pending payment link" state. Only runs if
+    // an amount is set and a link doesn't already exist.
+    if (
+      newStatus === 'sent' &&
+      !proposal.stripe_payment_link_url &&
+      (proposal.deposit_amount != null || proposal.amount != null)
+    ) {
+      const ok = await generatePaymentLink()
+      if (!ok) {
+        const proceedAnyway = confirm(
+          'Could not generate a Stripe payment link. Send the proposal anyway without a working payment button?'
+        )
+        if (!proceedAnyway) return
+      }
+    }
+
     const now = new Date().toISOString()
     const patch: Partial<Proposal> = { status: newStatus }
     if (newStatus === 'sent' && !proposal.sent_at) patch.sent_at = now
@@ -336,6 +386,23 @@ export default function ProposalDetailPage() {
               </div>
             </div>
             <div>
+              <label className="block text-sm font-medium text-[#1A0F2E] mb-1">
+                Deposit amount
+              </label>
+              <input
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+                inputMode="decimal"
+                placeholder="Leave blank to require the full amount upfront"
+                className="w-full px-3 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] text-sm"
+              />
+              <p className="text-xs text-[#6B6785] mt-1">
+                Amount due to start work. This is what the Stripe payment link
+                will charge — generated automatically when you send the
+                proposal.
+              </p>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-[#1A0F2E] mb-1">Terms</label>
               <textarea
                 value={terms}
@@ -345,6 +412,44 @@ export default function ProposalDetailPage() {
                 className="w-full px-3 py-2 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] text-sm resize-y"
               />
             </div>
+            {proposal.stripe_payment_link_url ? (
+              <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+                <p className="text-xs font-semibold text-green-800 uppercase tracking-wide mb-1">
+                  Stripe payment link
+                </p>
+                <a
+                  href={proposal.stripe_payment_link_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-green-800 hover:opacity-80 text-sm break-all underline"
+                >
+                  {proposal.stripe_payment_link_url}
+                </a>
+                <div className="mt-2">
+                  <button
+                    onClick={generatePaymentLink}
+                    disabled={generatingLink}
+                    className="text-xs text-green-800 underline hover:opacity-80 disabled:opacity-50"
+                  >
+                    {generatingLink ? 'Regenerating...' : 'Regenerate link'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-[#E8E4EF] bg-[#F8F7F5] p-3">
+                <p className="text-sm text-[#6B6785] mb-2">
+                  No Stripe payment link yet. It will be created automatically
+                  when this proposal is sent, or you can generate one now.
+                </p>
+                <button
+                  onClick={generatePaymentLink}
+                  disabled={generatingLink || (proposal.amount == null && depositAmount.trim() === '')}
+                  className="px-3 py-2 rounded-lg bg-[#290D47] text-white text-xs font-semibold hover:opacity-90 disabled:opacity-50"
+                >
+                  {generatingLink ? 'Generating...' : 'Generate Stripe payment link'}
+                </button>
+              </div>
+            )}
           </section>
 
           {/* Linked experiments */}

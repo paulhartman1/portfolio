@@ -26,6 +26,8 @@ export interface Proposal {
   currency: string
   timeline: string | null
   terms: string | null
+  deposit_amount: number | null
+  stripe_payment_link_url: string | null
   current_version_id: string | null
   accepted_version_id: string | null
   created_by: string | null

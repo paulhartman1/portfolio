@@ -33,8 +33,15 @@ export async function POST(
   }
 
   // 3. Generate Stripe Payment Link
+  const deposit = proposal.deposit_amount ?? proposal.amount
+  if (deposit == null || Number(deposit) <= 0) {
+    return NextResponse.json(
+      { error: 'Set an amount or deposit amount on this proposal before generating a payment link.' },
+      { status: 400 }
+    )
+  }
+
   try {
-    const deposit = proposal.deposit_amount || proposal.amount
     const amountInCents = Math.round(Number(deposit) * 100)
 
     const paymentLink = await createPaymentLink({
