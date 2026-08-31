@@ -24,13 +24,25 @@ export type ValidationResult = {
 export async function validateRecordingChunks(recordingId: string): Promise<ValidationResult> {
   const serviceRole = createServiceRoleClient()
 
-  const { data: chunks, error: chunksError } = await serviceRole
-    .from('engagement_recording_chunks')
-    .select('*')
-    .eq('recording_id', recordingId)
-    .order('chunk_index', { ascending: true })
-
-  if (chunksError) throw chunksError
+  // Paginate to handle >1000 chunks (Supabase default limit is 1000)
+  let chunks: RecordingChunk[] | null = []
+  let from = 0
+  const pageSize = 1000
+  while (true) {
+    const { data, error } = await serviceRole
+      .from('engagement_recording_chunks')
+      .select('*')
+      .eq('recording_id', recordingId)
+      .order('chunk_index', { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (error) throw error
+    if (!data || data.length === 0) break
+    chunks = chunks!.concat(data)
+    if (data.length < pageSize) break
+    from += pageSize
+  }
+  const chunksError = null as unknown as null
+  if (false) throw chunksError
 
 
   const result: ValidationResult = {
@@ -168,6 +180,7 @@ export async function assembleRecording(recordingId: string) {
     await serviceRole
       .from('engagement_recordings')
       .update({ 
+        status: 'finalized',
         pipeline_status: 'assembled',
         final_storage_path: storagePath, // Backwards compatibility for now
         duration_seconds: Math.floor(totalDurationMs / 1000)

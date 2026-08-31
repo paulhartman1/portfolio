@@ -64,12 +64,26 @@ export default async function ClientPortalPage({
     .eq('status', 'sent')
     .order('sent_at', { ascending: false, nullsFirst: false })
 
-  // Experiments visible to the client (RLS restricts to non-draft).
+  // Which experiments are currently "covered" by a pending sent proposal?
+  // An experiment whose proposal is still 'sent' should only appear in the
+  // "Action needed" section, not duplicated in the read-only "Experiments" list.
+  const actionableIds = (actionableProposals || []).map((p) => p.id)
+  const { data: linkedExperiments } = await supabase
+    .from('proposal_experiments')
+    .select('experiment_id')
+    .in('proposal_id', actionableIds)
+  const coveredExperimentIds = new Set(
+    (linkedExperiments || []).map((r) => r.experiment_id)
+  )
+
+  // Experiments visible to the client (RLS restricts to non-draft),
+  // excluding those already presented in a pending sent proposal.
   const { data: experiments } = await supabase
     .from('experiments')
     .select('id, code, title, slug, status')
     .eq('project_id', project.id)
     .order('experiment_number', { ascending: true })
+    .filter('id', 'not.in', coveredExperimentIds)
 
   const showWorkingSite = Boolean(project.url)
   const showReviewFeedback = openComments > 0
