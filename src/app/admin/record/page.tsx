@@ -253,6 +253,7 @@ export default function AdminRecordPage() {
           title: title.trim(),
           session_type: sessionType,
           consent_given: consentGiven,
+          source_type: 'browser',
         }),
       })
 
