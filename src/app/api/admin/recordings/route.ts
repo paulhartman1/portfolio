@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
   const title = body.title?.toString()?.trim()
   const sessionType = body.session_type?.toString()?.trim()
   const consentGiven = Boolean(body.consent_given)
-  const sourceType = body.source_type?.toString() || 'uploaded_video'
+  const sourceType = body.source_type?.toString() || 'browser'
   const mimeType = body.mime_type as string | null
   const container = body.container as string | null
 
@@ -165,6 +165,34 @@ export async function POST(request: NextRequest) {
       { error: 'project_id, title, session_type, and consent_given=true are required' },
       { status: 400 }
     )
+  }
+
+  // Browser recordings use chunked upload; uploaded_video uses single-file signed URL
+  if (sourceType === 'browser') {
+    const { data, error } = await admin.supabase
+      .from('engagement_recordings')
+      .insert({
+        project_id: projectId,
+        title,
+        session_type: sessionType,
+        consent_given: true,
+        created_by: admin.user.id,
+        status: 'recording',
+        pipeline_status: 'recording',
+        source_type: sourceType,
+        mime_type: mimeType,
+        container: container,
+      })
+      .select('id, project_id, title, session_type, status, started_at, source_type, mime_type, container')
+      .single()
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      recording: data,
+    })
   }
 
   const { data, error } = await admin.supabase
@@ -176,6 +204,7 @@ export async function POST(request: NextRequest) {
       consent_given: true,
       created_by: admin.user.id,
       status: 'uploading',
+      pipeline_status: 'recording',
       source_type: sourceType,
       mime_type: mimeType,
       container: container,

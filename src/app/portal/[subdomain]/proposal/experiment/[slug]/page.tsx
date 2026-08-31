@@ -53,6 +53,24 @@ export default async function ExperimentProposalPage({
     .eq('experiment_id', experiment.id)
     .order('sort_order')
 
+  // Find the client-facing proposal that authorizes this experiment so the
+  // client can accept or request changes.
+  const { data: linkRows } = await supabase
+    .from('proposal_experiments')
+    .select('proposal:proposals!inner(id, status)')
+    .eq('experiment_id', experiment.id)
+
+  const proposals = (linkRows || [])
+    .map((r) => {
+      const p = (r as { proposal: { id: string; status: string } | { id: string; status: string }[] })
+        .proposal
+      return Array.isArray(p) ? p[0] : p
+    })
+    .filter((p): p is { id: string; status: string } => Boolean(p))
+  const sentProposal = proposals.find((p) => p.status === 'sent')
+  const acceptedProposal = proposals.find((p) => p.status === 'accepted')
+  const currentPath = `/portal/${subdomain}/proposal/experiment/${slug}`
+
   const design = (experiment.design || {}) as Record<string, unknown>
   const designEntries = Object.entries(DESIGN_LABELS).filter(
     ([key]) => typeof design[key] === 'string' && (design[key] as string).trim()
@@ -130,18 +148,55 @@ export default async function ExperimentProposalPage({
 
       <Block label="Decision rule" value={experiment.decision_rule} />
 
-      <section className="border-t border-[#E8E4EF] pt-8">
-        <p className="text-sm text-[#6B6785]">
-          Questions or ready to proceed?{' '}
-          <Link
-            href={`/portal/${subdomain}/messages`}
-            className="text-[#290D47] underline underline-offset-2 hover:opacity-80"
-          >
-            Send us a message
-          </Link>
-          .
-        </p>
-      </section>
+      {sentProposal ? (
+        <section className="rounded-xl border border-[#290D47]/15 bg-white px-6 py-6 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#6B6785]">
+            Your decision
+          </p>
+          <p className="mt-2 text-base text-[#1A0F2E] leading-relaxed">
+            Ready to authorize this experiment, or want to talk it through first?
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <form action="/api/portal/proposals/respond" method="POST">
+              <input type="hidden" name="proposal_id" value={sentProposal.id} />
+              <input type="hidden" name="subdomain" value={subdomain} />
+              <input type="hidden" name="back_to" value={currentPath} />
+              <input type="hidden" name="decision" value="accepted" />
+              <button
+                type="submit"
+                className="px-5 py-3 rounded-lg bg-[#00F5E4] text-[#1A0F2E] text-sm font-semibold hover:opacity-90"
+              >
+                Approve &amp; proceed
+              </button>
+            </form>
+            <Link
+              href={`/portal/${subdomain}/messages`}
+              className="px-5 py-3 rounded-lg border border-[#E8E4EF] text-[#290D47] text-sm font-semibold hover:bg-[#F8F7F5]"
+            >
+              Ask a question
+            </Link>
+          </div>
+        </section>
+      ) : acceptedProposal ? (
+        <section className="rounded-xl border border-green-200 bg-green-50 px-6 py-5">
+          <p className="text-sm font-medium text-green-900">
+            ✓ You approved this experiment. We&apos;ll take it from here.
+          </p>
+        </section>
+      ) : (
+        <section className="border-t border-[#E8E4EF] pt-8">
+          <p className="text-sm text-[#6B6785]">
+            Questions or ready to proceed?{' '}
+            <Link
+              href={`/portal/${subdomain}/messages`}
+              className="text-[#290D47] underline underline-offset-2 hover:opacity-80"
+            >
+              Send us a message
+            </Link>
+            .
+          </p>
+        </section>
+      )}
     </div>
   )
 }

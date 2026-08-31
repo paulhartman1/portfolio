@@ -7,6 +7,7 @@ import { supabaseBrowser } from '@/utils/supabase/client'
 import EngagementRecordings from '@/components/EngagementRecordings'
 import { AskCgt } from '@/components/AskCgt'
 import ProjectExperiments from '@/components/ProjectExperiments'
+import ProjectProposals from '@/components/ProjectProposals'
 
 type Project = {
   id: string
@@ -853,6 +854,10 @@ export default function ManageProjectPage() {
 
       <div className="mt-6">
         <ProjectExperiments projectId={projectId} />
+      </div>
+
+      <div className="mt-6">
+        <ProjectProposals projectId={projectId} />
       </div>
 
       <div className="mt-6">

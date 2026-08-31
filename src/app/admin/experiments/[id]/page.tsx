@@ -39,8 +39,10 @@ type ObservationRow = {
 
 type ProposalRow = {
   id: string
+  code: string
   title: string
   status: string
+  kind: string
   current_version: { presentation_route: string } | { presentation_route: string }[] | null
 }
 
@@ -130,8 +132,8 @@ export default function ExperimentDetailPage() {
       supabaseBrowser.from('experiment_links').select('*').eq('experiment_id', experimentId).order('created_at'),
       supabaseBrowser.from('experiment_findings').select('*').eq('experiment_id', experimentId).order('created_at'),
       supabaseBrowser
-        .from('proposals')
-        .select('id, title, status, current_version:proposal_versions!current_version_id(presentation_route)')
+        .from('proposal_experiments')
+        .select('proposal:proposals!inner(id, code, title, status, kind, current_version:proposal_versions!current_version_id(presentation_route))')
         .eq('experiment_id', experimentId),
       supabaseBrowser
         .from('experiments')
@@ -145,7 +147,10 @@ export default function ExperimentDetailPage() {
     setConditions((cond as ExperimentCondition[]) || [])
     setLinks((lnk as ExperimentLink[]) || [])
     setFindings((find as ExperimentFinding[]) || [])
-    setProposals((props as ProposalRow[]) || [])
+    const proposalRows = ((props as { proposal: ProposalRow | ProposalRow[] }[]) || [])
+      .map((r) => (Array.isArray(r.proposal) ? r.proposal[0] : r.proposal))
+      .filter((p): p is ProposalRow => Boolean(p))
+    setProposals(proposalRows)
     setOtherExperiments((others as Experiment[]) || [])
 
     // Sessions for the project (link candidates + linked).
@@ -497,6 +502,9 @@ export default function ExperimentDetailPage() {
                   const v = Array.isArray(p.current_version) ? p.current_version[0] : p.current_version
                   return (
                     <li key={p.id} className="text-sm">
+                      <Link href={`/admin/proposals/${p.id}`} className="font-mono text-xs text-[#6B6785] hover:text-[#290D47]">
+                        {p.code}
+                      </Link>{' '}
                       <span className="font-medium text-[#1A0F2E]">{p.title}</span>{' '}
                       <span className="text-[#6B6785]">({p.status})</span>
                       {project?.subdomain && v?.presentation_route && (
