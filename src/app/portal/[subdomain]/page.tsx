@@ -142,23 +142,25 @@ export default async function ClientPortalPage({
                   : 'Please review the proposal and let us know if you have questions or would like to proceed.'
                 }
               </p>
-              {actionableProposals.map(proposal => {
-                const version = Array.isArray(proposal.current_version) 
-                  ? proposal.current_version[0] 
-                  : proposal.current_version
-                return (
-                  <Link
-                    key={proposal.id}
-                    href={`/portal/${subdomain}/proposal/${version?.presentation_route ?? ''}`}
-                    className="mt-5 inline-flex px-5 py-3 rounded-lg bg-[#00F5E4] text-[#1A0F2E] text-sm font-semibold hover:opacity-90"
-                  >
-                    {actionableProposals.length > 1
-                      ? `Review: ${proposal.title}`
-                      : 'Review proposal'
-                    }
-                  </Link>
-                )
-              })}
+              <div className="mt-5 flex flex-col gap-3 items-start">
+                {actionableProposals.map(proposal => {
+                  const version = Array.isArray(proposal.current_version) 
+                    ? proposal.current_version[0] 
+                    : proposal.current_version
+                  return (
+                    <Link
+                      key={proposal.id}
+                      href={`/portal/${subdomain}/proposal/${version?.presentation_route ?? ''}`}
+                      className="inline-flex px-5 py-3 rounded-lg bg-[#00F5E4] text-[#1A0F2E] text-sm font-semibold hover:opacity-90"
+                    >
+                      {actionableProposals.length > 1
+                        ? `Review: ${proposal.title}`
+                        : 'Review proposal'
+                      }
+                    </Link>
+                  )
+                })}
+              </div>
             </>
           ) : null}
         </section>
