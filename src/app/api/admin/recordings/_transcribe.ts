@@ -183,13 +183,27 @@ async function transcribeChunks(
   transcriptId: string,
   apiKey: string,
 ) {
-  const { data: chunks, error: chunksError } = await serviceRole
-    .from('engagement_recording_chunks')
-    .select('id, chunk_index, storage_path')
-    .eq('recording_id', recordingId)
-    .order('chunk_index', { ascending: true })
+  // Paginate to handle >1000 chunks (Supabase default limit)
+  let chunks: Array<{ id: string; chunk_index: number; storage_path: string }> | null = []
+  let from = 0
+  const pageSize = 1000
+  while (true) {
+    const { data, error } = await serviceRole
+      .from('engagement_recording_chunks')
+      .select('id, chunk_index, storage_path')
+      .eq('recording_id', recordingId)
+      .order('chunk_index', { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (error) throw new Error(error.message)
+    if (!data || data.length === 0) break
+    chunks = chunks!.concat(data)
+    if (data.length < pageSize) break
+    from += pageSize
+  }
 
-  if (chunksError || !chunks?.length) throw new Error(chunksError?.message || 'Recording has no uploaded chunks')
+  if (!chunks?.length) throw new Error('Recording has no uploaded chunks')
+  const chunksError = null as unknown as null
+  if (false) throw chunksError
 
   console.info('[transcription] Chunked transcription started', {
     recordingId,
