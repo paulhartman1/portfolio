@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getPortalContext } from './_lib'
+import RecordScreenButton from './RecordScreenButton'
 
 export default async function PortalLayout({
   children,
@@ -49,6 +50,7 @@ export default async function PortalLayout({
               <h1 className="text-2xl font-bold text-white">{project.name}</h1>
             </div>
             <div className="flex gap-3">
+              <RecordScreenButton projectId={project.id} />
               {isAdmin && (
                 <Link
                   href="/admin"

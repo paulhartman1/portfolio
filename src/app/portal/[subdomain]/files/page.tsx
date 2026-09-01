@@ -13,7 +13,7 @@ export default async function FilesPage({
 
   const { data: files } = await supabase
     .from('project_files')
-    .select('id, file_name, file_path, bucket_name, category, created_at, file_size')
+    .select('id, file_name, file_path, bucket_name, category, mime_type, created_at, file_size')
     .eq('project_id', project.id)
     .order('created_at', { ascending: false })
 
@@ -44,32 +44,43 @@ export default async function FilesPage({
       <section className="bg-white border border-[#290D47]/15 rounded-2xl p-6 shadow-sm">
         <h3 className="text-lg font-semibold text-[#1A0F2E] mb-4">Shared with you</h3>
         <div className="space-y-3">
-          {signedUrls.map((file) => (
-            <div key={file.id} className="bg-[#F8F7F5] border border-[#E8E4EF] rounded-lg p-4">
-              <div className="flex flex-wrap gap-3 justify-between">
-                <div>
-                  <p className="text-[#1A0F2E] font-medium">{file.file_name}</p>
-                  <p className="text-[#6B6785] text-xs mt-1 uppercase">{file.category}</p>
-                  <p className="text-[#6B6785] text-xs mt-1">
-                    {file.file_size ? `${Math.ceil(file.file_size / 1024)} KB` : 'Unknown size'} ·{' '}
-                    {new Date(file.created_at).toLocaleString()}
-                  </p>
+          {signedUrls.map((file) => {
+            const isVideo = file.mime_type?.startsWith('video/') ?? false
+
+            return (
+              <div key={file.id} className="bg-[#F8F7F5] border border-[#E8E4EF] rounded-lg p-4">
+                <div className="flex flex-wrap gap-3 justify-between">
+                  <div>
+                    <p className="text-[#1A0F2E] font-medium">{file.file_name}</p>
+                    <p className="text-[#6B6785] text-xs mt-1 uppercase">{file.category}</p>
+                    <p className="text-[#6B6785] text-xs mt-1">
+                      {file.file_size ? `${Math.ceil(file.file_size / 1024)} KB` : 'Unknown size'} ·{' '}
+                      {new Date(file.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                  {file.signedUrl ? (
+                    <a
+                      href={file.signedUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-2 rounded-lg bg-[#00F5E4] text-[#1A0F2E] hover:opacity-90 h-fit font-medium"
+                    >
+                      Download
+                    </a>
+                  ) : (
+                    <span className="text-[#6B6785] text-sm h-fit">Unavailable</span>
+                  )}
                 </div>
-                {file.signedUrl ? (
-                  <a
-                    href={file.signedUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-2 rounded-lg bg-[#00F5E4] text-[#1A0F2E] hover:opacity-90 h-fit font-medium"
-                  >
-                    Download
-                  </a>
-                ) : (
-                  <span className="text-[#6B6785] text-sm h-fit">Unavailable</span>
+                {isVideo && file.signedUrl && (
+                  <video
+                    controls
+                    src={file.signedUrl}
+                    className="mt-3 w-full rounded-lg bg-black"
+                  />
                 )}
               </div>
-            </div>
-          ))}
+            )
+          })}
           {!signedUrls.length && (
             <p className="text-[#6B6785] text-sm">
               No documents yet. Upload anything we should both be able to find here.
