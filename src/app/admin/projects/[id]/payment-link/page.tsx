@@ -19,7 +19,7 @@ type Client = {
 export default function PaymentLinkPage() {
   const params = useParams()
   const searchParams = useSearchParams()
-  const projectId = params.id as string
+  const projectId = (params?.id || '').toString()
 
   const [project, setProject] = useState<Project | null>(null)
   const [clients, setClients] = useState<Client[]>([])
@@ -34,7 +34,7 @@ export default function PaymentLinkPage() {
   const [paymentType, setPaymentType] = useState<'project' | 'retainer'>('project')
   const [customerEmail, setCustomerEmail] = useState('')
 
-  const canceled = searchParams.get('canceled')
+  const canceled = searchParams?.get('canceled')
 
   useEffect(() => {
     loadProject()

@@ -30,7 +30,7 @@ type JourneyMap = {
 
 export default function PortalJourneyMapPage() {
   const params = useParams()
-  const subdomain = params.subdomain as string
+  const subdomain = (params?.subdomain || '').toString()
   
   const [journeyMaps, setJourneyMaps] = useState<JourneyMap[]>([])
   const [selectedMapId, setSelectedMapId] = useState<string | null>(null)

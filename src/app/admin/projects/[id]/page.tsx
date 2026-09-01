@@ -69,7 +69,7 @@ type SendStatus = 'idle' | 'sending' | 'sent' | 'error'
 
 export default function ManageProjectPage() {
   const params = useParams()
-  const projectId = params.id as string
+  const projectId = (params?.id || '').toString()
 
   const [project, setProject] = useState<Project | null>(null)
   const [clients, setClients] = useState<Client[]>([])

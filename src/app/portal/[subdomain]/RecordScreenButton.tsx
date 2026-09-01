@@ -1,415 +1,82 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import QRCode from 'qrcode'
 import { useRouter } from 'next/navigation'
 import { supabaseBrowser } from '@/utils/supabase/client'
 
-type Props = {
-  projectId: string
-}
+type Props = { projectId: string }
+type MicMode = 'computer' | 'phone' | 'none'
+type Status = 'idle' | 'pairing' | 'phone-ready' | 'requesting' | 'recording' | 'uploading' | 'done' | 'error'
 
-type RecorderStatus = 'idle' | 'requesting' | 'recording' | 'uploading' | 'done' | 'error'
-
-function formatTime(totalSeconds: number) {
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-}
-
-function pickMimeType() {
-  const candidates = [
-    'video/webm;codecs=vp9,opus',
-    'video/webm;codecs=vp8,opus',
-    'video/webm',
-  ]
-  for (const candidate of candidates) {
-    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(candidate)) {
-      return candidate
-    }
-  }
-  return ''
-}
-
-const PANEL_MARGIN = 16
-const PANEL_WIDTH = 260
+function time(seconds: number) { return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}` }
 
 export default function RecordScreenButton({ projectId }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [status, setStatus] = useState<RecorderStatus>('idle')
-  const [elapsedSeconds, setElapsedSeconds] = useState(0)
-  const [message, setMessage] = useState<string | null>(null)
-  const [supported, setSupported] = useState(true)
-  const [position, setPosition] = useState<{ x: number; y: number } | null>(null)
-  const [dragging, setDragging] = useState(false)
-
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const [micMode, setMicMode] = useState<MicMode>('computer')
+  const [status, setStatus] = useState<Status>('idle')
+  const [message, setMessage] = useState('')
+  const [qr, setQr] = useState<string | null>(null)
+  const [phoneStatus, setPhoneStatus] = useState('')
+  const [recordingId, setRecordingId] = useState<string | null>(null)
+  const [elapsed, setElapsed] = useState(0)
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const streamsRef = useRef<MediaStream[]>([])
   const chunksRef = useRef<Blob[]>([])
-  const streamsToStopRef = useRef<MediaStream[]>([])
-  const audioContextRef = useRef<AudioContext | null>(null)
-  const timerRef = useRef<number | null>(null)
-  const panelRef = useRef<HTMLDivElement | null>(null)
-  const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
+  const startedRef = useRef(0)
+  const pollRef = useRef<number | null>(null)
 
-  useEffect(() => {
-    if (open && position === null && typeof window !== 'undefined') {
-      setPosition({ x: window.innerWidth - PANEL_WIDTH - PANEL_MARGIN, y: 72 })
-    }
-  }, [open, position])
+  useEffect(() => () => { streamsRef.current.forEach((s) => s.getTracks().forEach((t) => t.stop())); if (pollRef.current) window.clearInterval(pollRef.current) }, [])
+  useEffect(() => { if (status !== 'recording') return; const id = window.setInterval(() => setElapsed(Math.floor((Date.now() - startedRef.current) / 1000)), 1000); return () => window.clearInterval(id) }, [status])
 
-  useEffect(() => {
-    if (!dragging) return
-
-    function handlePointerMove(event: PointerEvent) {
-      if (typeof window === 'undefined') return
-      const panelWidth = panelRef.current?.offsetWidth ?? PANEL_WIDTH
-      const panelHeight = panelRef.current?.offsetHeight ?? 0
-      const nextX = event.clientX - dragOffsetRef.current.x
-      const nextY = event.clientY - dragOffsetRef.current.y
-      const maxX = window.innerWidth - panelWidth - PANEL_MARGIN
-      const maxY = window.innerHeight - panelHeight - PANEL_MARGIN
-      setPosition({
-        x: Math.min(Math.max(nextX, PANEL_MARGIN), Math.max(maxX, PANEL_MARGIN)),
-        y: Math.min(Math.max(nextY, PANEL_MARGIN), Math.max(maxY, PANEL_MARGIN)),
-      })
-    }
-
-    function handlePointerUp() {
-      setDragging(false)
-    }
-
-    window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', handlePointerUp)
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handlePointerUp)
-    }
-  }, [dragging])
-
-  function handleHeaderPointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    const rect = panelRef.current?.getBoundingClientRect()
-    if (!rect) return
-    dragOffsetRef.current = {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    }
-    setDragging(true)
-  }
-
-  useEffect(() => {
-    setSupported(
-      typeof navigator !== 'undefined' &&
-        !!navigator.mediaDevices &&
-        typeof navigator.mediaDevices.getDisplayMedia === 'function' &&
-        typeof window !== 'undefined' &&
-        typeof MediaRecorder !== 'undefined'
-    )
-  }, [])
-
-  function cleanupStreams() {
-    streamsToStopRef.current.forEach((stream) => {
-      stream.getTracks().forEach((track) => track.stop())
-    })
-    streamsToStopRef.current = []
-
-    if (audioContextRef.current) {
-      audioContextRef.current.close().catch(() => {})
-      audioContextRef.current = null
-    }
-
-    if (timerRef.current) {
-      window.clearInterval(timerRef.current)
-      timerRef.current = null
-    }
-  }
-
-  useEffect(() => {
-    return () => cleanupStreams()
-  }, [])
-
-  async function startRecording() {
-    setMessage(null)
-    setStatus('requesting')
-    chunksRef.current = []
-    setElapsedSeconds(0)
-
-    let displayStream: MediaStream
+  async function choosePhone() {
+    setMicMode('phone'); setStatus('pairing'); setMessage('')
     try {
-      displayStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: true,
-      })
-    } catch {
-      setStatus('idle')
-      setMessage('Screen sharing permission was denied or cancelled.')
-      return
-    }
-    streamsToStopRef.current.push(displayStream)
+      const created = await fetch(`/api/portal/projects/${projectId}/recordings`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mic_source: 'phone' }) })
+      const recordingBody = await created.json(); if (!created.ok) throw new Error(recordingBody.error)
+      const id = recordingBody.recording.id as string; setRecordingId(id)
+      const paired = await fetch(`/api/portal/projects/${projectId}/recordings/${id}/phone-pairing`, { method: 'POST' })
+      const pairingBody = await paired.json(); if (!paired.ok) throw new Error(pairingBody.error)
+      setQr(await QRCode.toDataURL(pairingBody.qr_url, { width: 220, margin: 2 })); setPhoneStatus('Waiting for phone...')
+      pollRef.current = window.setInterval(async () => {
+        const response = await fetch(`/api/portal/projects/${projectId}/recordings/${id}/phone-pairing/status`)
+        if (!response.ok) return
+        const body = await response.json(); setPhoneStatus(body.status === 'active' ? 'Phone microphone connected ✓' : body.status === 'opened' ? 'Phone opened link' : body.status === 'error' ? 'Phone microphone error' : 'Waiting for phone...')
+        if (body.status === 'active') setStatus('phone-ready')
+      }, 2000)
+    } catch (error) { setStatus('error'); setMessage(error instanceof Error ? error.message : 'Could not pair phone.') }
+  }
 
-    let micStream: MediaStream | null = null
+  async function start() {
+    setStatus('requesting'); setMessage('')
     try {
-      micStream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      streamsToStopRef.current.push(micStream)
-    } catch {
-      // Mic denied/unavailable - continue with display audio only, if any.
-      micStream = null
-    }
-
-    const videoTrack = displayStream.getVideoTracks()[0]
-    const displayAudioTracks = displayStream.getAudioTracks()
-    const micAudioTracks = micStream?.getAudioTracks() ?? []
-
-    let mixedAudioTrack: MediaStreamTrack | null = null
-
-    if (displayAudioTracks.length > 0 || micAudioTracks.length > 0) {
-      try {
-        const audioContext = new AudioContext()
-        audioContextRef.current = audioContext
-        const destination = audioContext.createMediaStreamDestination()
-
-        if (displayAudioTracks.length > 0) {
-          const displayAudioSource = audioContext.createMediaStreamSource(
-            new MediaStream(displayAudioTracks)
-          )
-          displayAudioSource.connect(destination)
-        }
-
-        if (micAudioTracks.length > 0) {
-          const micAudioSource = audioContext.createMediaStreamSource(
-            new MediaStream(micAudioTracks)
-          )
-          micAudioSource.connect(destination)
-        }
-
-        mixedAudioTrack = destination.stream.getAudioTracks()[0] ?? null
-      } catch {
-        // If mixing fails for any reason, fall back to whichever single track exists.
-        mixedAudioTrack = micAudioTracks[0] ?? displayAudioTracks[0] ?? null
-      }
-    }
-
-    const combinedStream = new MediaStream(
-      [videoTrack, mixedAudioTrack].filter((track): track is MediaStreamTrack => Boolean(track))
-    )
-
-    const mimeType = pickMimeType()
-    const recorder = mimeType
-      ? new MediaRecorder(combinedStream, { mimeType })
-      : new MediaRecorder(combinedStream)
-
-    recorder.ondataavailable = (event) => {
-      if (event.data && event.data.size > 0) {
-        chunksRef.current.push(event.data)
-      }
-    }
-
-    recorder.onstop = () => {
-      void finishRecording(mimeType || 'video/webm')
-    }
-
-    // If the user stops sharing via the browser's own "Stop sharing" control.
-    videoTrack.addEventListener('ended', () => {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop()
-      }
-    })
-
-    mediaRecorderRef.current = recorder
-    recorder.start(1000)
-    setStatus('recording')
-
-    timerRef.current = window.setInterval(() => {
-      setElapsedSeconds((prev) => prev + 1)
-    }, 1000)
+      const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true }); streamsRef.current.push(display)
+      let mic: MediaStream | null = null
+      if (micMode === 'computer') { mic = await navigator.mediaDevices.getUserMedia({ audio: true }); streamsRef.current.push(mic) }
+      const tracks = [...display.getVideoTracks(), ...(micMode === 'none' ? display.getAudioTracks() : mic ? [...display.getAudioTracks(), ...mic.getAudioTracks()] : display.getAudioTracks())]
+      const recorder = new MediaRecorder(new MediaStream(tracks)); chunksRef.current = []
+      recorder.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data) }
+      recorder.onstop = () => void finish(recorder.mimeType || 'video/webm')
+      recorderRef.current = recorder; recorder.start(); startedRef.current = Date.now(); setElapsed(0); setStatus('recording')
+      display.getVideoTracks()[0]?.addEventListener('ended', stop)
+    } catch (error) { setStatus('idle'); setMessage(error instanceof Error ? error.message : 'Screen or microphone permission was denied.') }
   }
 
-  function stopRecording() {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop()
-    }
-  }
-
-  async function finishRecording(mimeType: string) {
-    if (timerRef.current) {
-      window.clearInterval(timerRef.current)
-      timerRef.current = null
-    }
-
-    setStatus('uploading')
-
+  function stop() { if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop() }
+  async function finish(mimeType: string) {
+    setStatus('uploading'); const blob = new Blob(chunksRef.current, { type: mimeType }); const { data: { user } } = await supabaseBrowser.auth.getUser()
     try {
-      const blob = new Blob(chunksRef.current, { type: mimeType })
-      chunksRef.current = []
-
-      if (blob.size === 0) {
-        throw new Error('Recording was empty. Please try again.')
-      }
-
-      const {
-        data: { user },
-      } = await supabaseBrowser.auth.getUser()
-
-      if (!user) {
-        throw new Error('You must be logged in to upload recordings.')
-      }
-
-      const extension = mimeType.includes('webm') ? 'webm' : 'mp4'
-      const fileName = `screen-recording-${Date.now()}.${extension}`
-      const objectPath = `${projectId}/${Date.now()}-${fileName}`
-
-      const { error: uploadError } = await supabaseBrowser.storage
-        .from('client-files')
-        .upload(objectPath, blob, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: mimeType,
-        })
-
-      if (uploadError) {
-        throw uploadError
-      }
-
-      const { error: insertError } = await supabaseBrowser.from('project_files').insert({
-        project_id: projectId,
-        uploader_id: user.id,
-        file_name: fileName,
-        file_path: objectPath,
-        bucket_name: 'client-files',
-        category: 'recording',
-        mime_type: mimeType,
-        file_size: blob.size,
-      })
-
-      if (insertError) {
-        throw insertError
-      }
-
-      setStatus('done')
-      setMessage('Recording uploaded to Documents.')
-      router.refresh()
-    } catch (error) {
-      setStatus('error')
-      setMessage(error instanceof Error ? error.message : 'Failed to upload recording.')
-    } finally {
-      cleanupStreams()
-    }
+      if (!user || !blob.size) throw new Error('Recording was empty or you are signed out.')
+      const name = `screen-recording-${Date.now()}.webm`; const path = `${projectId}/${Date.now()}-${name}`
+      const upload = await supabaseBrowser.storage.from('client-files').upload(path, blob, { contentType: mimeType, upsert: false }); if (upload.error) throw upload.error
+      const inserted = await supabaseBrowser.from('project_files').insert({ project_id: projectId, uploader_id: user.id, file_name: name, file_path: path, bucket_name: 'client-files', category: 'recording', mime_type: mimeType, file_size: blob.size }).select('id').single(); if (inserted.error) throw inserted.error
+      if (recordingId) await fetch(`/api/portal/projects/${projectId}/recordings/${recordingId}/attach-video`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ project_file_id: inserted.data.id }) })
+      setStatus('done'); setMessage('Recording uploaded to Documents.'); router.refresh()
+    } catch (error) { setStatus('error'); setMessage(error instanceof Error ? error.message : 'Upload failed.') }
+    finally { streamsRef.current.forEach((s) => s.getTracks().forEach((t) => t.stop())); streamsRef.current = []; recorderRef.current = null; if (pollRef.current) window.clearInterval(pollRef.current) }
   }
 
-  function closePanel() {
-    if (status === 'recording' || status === 'requesting') {
-      stopRecording()
-    }
-    cleanupStreams()
-    setOpen(false)
-    setStatus('idle')
-    setElapsedSeconds(0)
-    setMessage(null)
-    setPosition(null)
-  }
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="px-4 py-2 rounded-lg border border-white/25 text-white text-sm hover:bg-white/10 flex items-center gap-2"
-      >
-        <span className="inline-block w-2 h-2 rounded-full bg-red-500" />
-        Record Screen
-      </button>
-
-      {open && position && (
-        <div
-          ref={panelRef}
-          className="fixed z-50 bg-white rounded-xl shadow-xl border border-[#290D47]/15 w-[260px] select-none"
-          style={{ left: position.x, top: position.y }}
-        >
-          <div
-            onPointerDown={handleHeaderPointerDown}
-            className="flex items-center justify-between px-3 py-2 border-b border-[#E8E4EF] cursor-move touch-none"
-          >
-            <span className="text-sm font-semibold text-[#1A0F2E] flex items-center gap-1.5">
-              <span aria-hidden className="text-[#6B6785]">⠿</span>
-              Record screen
-            </span>
-            <button
-              type="button"
-              onClick={closePanel}
-              className="text-[#6B6785] hover:text-[#1A0F2E] text-sm leading-none"
-              aria-label="Close"
-            >
-              ✕
-            </button>
-          </div>
-
-          <div className="p-3 space-y-3">
-            {!supported && (
-              <p className="text-xs text-[#6B6785]">
-                Not supported in this browser. Try Chrome, Edge, or Firefox on desktop.
-              </p>
-            )}
-
-            {supported && status === 'idle' && (
-              <>
-                <p className="text-xs text-[#6B6785]">
-                  Shares a tab/window + mic. Uploads to Documents on stop.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => void startRecording()}
-                  className="w-full px-3 py-1.5 rounded-lg bg-[#00F5E4] text-[#1A0F2E] text-sm font-medium hover:opacity-90"
-                >
-                  Start recording
-                </button>
-              </>
-            )}
-
-            {status === 'requesting' && (
-              <p className="text-xs text-[#6B6785]">Waiting for permissions…</p>
-            )}
-
-            {status === 'recording' && (
-              <>
-                <div className="flex items-center gap-2 text-[#1A0F2E]">
-                  <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                  <span className="font-mono text-sm">{formatTime(elapsedSeconds)}</span>
-                  <span className="text-xs text-[#6B6785]">Recording…</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={stopRecording}
-                  className="w-full px-3 py-1.5 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600"
-                >
-                  Stop &amp; upload
-                </button>
-              </>
-            )}
-
-            {status === 'uploading' && (
-              <p className="text-xs text-[#6B6785]">Uploading recording…</p>
-            )}
-
-            {(status === 'done' || status === 'error') && (
-              <>
-                <p className={`text-xs ${status === 'error' ? 'text-red-600' : 'text-[#1A0F2E]'}`}>
-                  {message}
-                </p>
-                <button
-                  type="button"
-                  onClick={closePanel}
-                  className="w-full px-3 py-1.5 rounded-lg border border-[#290D47]/20 text-[#1A0F2E] text-sm font-medium hover:bg-[#F8F7F5]"
-                >
-                  Close
-                </button>
-              </>
-            )}
-
-            {message && status !== 'done' && status !== 'error' && (
-              <p className="text-xs text-red-600">{message}</p>
-            )}
-          </div>
-        </div>
-      )}
-    </>
-  )
+  async function close() { if (status === 'recording') stop(); if (recordingId && status !== 'done') await fetch(`/api/portal/projects/${projectId}/recordings/${recordingId}/cancel`, { method: 'POST' }).catch(() => {}); setOpen(false); setStatus('idle'); setRecordingId(null); setQr(null); setMessage('') }
+  return <><button type="button" onClick={() => setOpen(true)} className="px-4 py-2 rounded-lg border border-white/25 text-white text-sm hover:bg-white/10">Record Screen</button>{open && <div className="fixed right-4 top-20 z-50 w-[280px] rounded-xl border border-[#290D47]/15 bg-white shadow-xl"><div className="flex justify-between border-b p-3"><b>Record screen</b><button onClick={() => void close()}>✕</button></div><div className="space-y-3 p-3"><fieldset disabled={!['idle', 'pairing', 'phone-ready'].includes(status)}><legend className="text-sm font-semibold">Microphone</legend>{(['computer', 'phone', 'none'] as MicMode[]).map((mode) => <label key={mode} className="block text-sm"><input type="radio" checked={micMode === mode} onChange={() => mode === 'phone' ? void choosePhone() : setMicMode(mode)} /> {mode === 'computer' ? 'This computer' : mode === 'phone' ? 'Use my phone' : 'No microphone'}</label>)}</fieldset>{qr && <div className="text-center text-xs text-[#6B6785]"><p>Scan this QR code with your phone.</p><img src={qr} alt="Phone microphone QR code" className="mx-auto my-2 h-48 w-48" /><p>{phoneStatus}</p></div>}{status === 'recording' && <div className="font-mono text-lg">{time(elapsed)}</div>}{status === 'uploading' && <p className="text-sm">Uploading recording...</p>}{(status === 'idle' || status === 'phone-ready') && <button disabled={micMode === 'phone' && status !== 'phone-ready'} onClick={() => void start()} className="w-full rounded-lg bg-[#00F5E4] px-3 py-2 text-sm font-medium disabled:opacity-40">Start Recording</button>}{status === 'recording' && <button onClick={stop} className="w-full rounded-lg bg-red-500 px-3 py-2 text-sm text-white">Stop Recording</button>}{message && <p className="text-xs text-red-600">{message}</p>}{status === 'done' && <button onClick={() => void close()} className="w-full rounded-lg border px-3 py-2 text-sm">Close</button>}</div></div>}</>
 }

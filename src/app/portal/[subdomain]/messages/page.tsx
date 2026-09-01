@@ -21,8 +21,8 @@ type Message = {
 function MessagesContent() {
   const params = useParams()
   const searchParams = useSearchParams()
-  const subdomain = params.subdomain as string
-  const initialMessage = searchParams.get('message') || ''
+  const subdomain = (params?.subdomain || '').toString()
+  const initialMessage = searchParams?.get('message') || ''
 
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)

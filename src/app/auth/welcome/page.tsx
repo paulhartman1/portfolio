@@ -68,8 +68,8 @@ function WelcomeContent() {
       }
       
       // Check for token_hash and type in query params (PKCE flow)
-      const tokenHash = searchParams.get('token_hash');
-      const type = searchParams.get('type');
+      const tokenHash = searchParams?.get('token_hash');
+      const type = searchParams?.get('type');
       
       if (tokenHash && type === 'invite' && !isProcessing) {
         isProcessing = true;
@@ -169,7 +169,7 @@ function WelcomeContent() {
           supabase.auth.getSession().then(({ data: { session: newSession } }) => {
             if (!newSession) {
               timeoutId = setTimeout(() => {
-                const email = searchParams.get("email");
+                const email = searchParams?.get("email");
                 if (email) {
                   router.replace(`/auth/link-expired?email=${encodeURIComponent(email)}&type=invite`);
                 } else {

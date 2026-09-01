@@ -51,7 +51,7 @@ export function EngagementSessionProvider({ children }: { children: ReactNode })
   const [recordingState, setRecordingState] = useState<RecordingState>({ status: 'idle', elapsedSeconds: 0 })
   const [recentCaptures, setRecentCaptures] = useState<Capture[]>([])
   const [dockVisible, setDockVisible] = useState(true)
-  const pathname = usePathname()
+  const pathname = usePathname() ?? ''
   const isRecordPage = pathname.startsWith('/admin/record')
 
   const pageContext: PageContext = {

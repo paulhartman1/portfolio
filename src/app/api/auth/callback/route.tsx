@@ -155,16 +155,21 @@ export async function GET(req: NextRequest) {
   }
 
   // For non-admin users, find their project subdomain
-  const { data: projectClient } = await supabase
+  const { data: projectClients } = await supabase
     .from('project_clients')
-    .select('projects(subdomain)')
+    .select('projects(subdomain, name)')
     .eq('client_id', user.id)
-    .limit(1)
-    .single()
+    .order('created_at', { ascending: true })
 
-  const projectSubdomain = projectClient?.projects && !Array.isArray(projectClient.projects)
-    ? (projectClient.projects as { subdomain: string }).subdomain
-    : null
+  const projects = (projectClients || [])
+    .map((row) => Array.isArray(row.projects) ? row.projects[0] : row.projects)
+    .filter((project): project is { subdomain: string; name: string } => Boolean(project?.subdomain))
+
+  if (projects.length > 1) {
+    return NextResponse.redirect(new URL('/portal/choose-project', req.url))
+  }
+
+  const projectSubdomain = projects[0]?.subdomain || null
 
   if (projectSubdomain) {
     console.log('[Auth Callback] Client user, redirecting to portal:', projectSubdomain)

@@ -60,7 +60,7 @@ const DESIGN_FIELDS: { key: string; label: string; placeholder: string }[] = [
 
 export default function ExperimentDetailPage() {
   const params = useParams()
-  const experimentId = params.id as string
+  const experimentId = params?.id as string
 
   const [experiment, setExperiment] = useState<Experiment | null>(null)
   const [project, setProject] = useState<ProjectLite | null>(null)

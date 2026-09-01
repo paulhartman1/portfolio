@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/utils/supabase/service-role'
 import { requireAdmin } from '../../_lib'
-import { createHash } from 'crypto'
+import { writeRecordingChunk } from '@/lib/recordings/chunk-writer'
 
 export async function POST(
   request: NextRequest,
@@ -44,60 +44,22 @@ export async function POST(
   }
 
   const buffer = Buffer.from(await chunk.arrayBuffer())
-  const checksum = createHash('sha256').update(buffer).digest('hex')
-
-  // Check for existing chunk (Idempotency)
-  const { data: existingChunk } = await admin.supabase
-    .from('engagement_recording_chunks')
-    .select('checksum')
-    .eq('recording_id', id)
-    .eq('chunk_index', chunkIndex)
-    .maybeSingle()
-
-  if (existingChunk) {
-    if (existingChunk.checksum === checksum) {
-      return NextResponse.json({ ok: true, chunk_index: chunkIndex, status: 'already_exists' })
-    } else {
-      return NextResponse.json({ error: 'Conflict: chunk index exists with different content' }, { status: 409 })
-    }
-  }
-
-  const extension = chunk.type.includes('ogg') ? 'ogg' : 'webm'
-  const storagePath = `${id}/chunk-${chunkIndex.toString().padStart(6, '0')}.${extension}`
-
   const serviceRole = createServiceRoleClient()
-  const { error: uploadError } = await serviceRole
-    .storage
-    .from('engagement-recordings')
-    .upload(storagePath, buffer, {
-      contentType: chunk.type || 'audio/webm',
-      upsert: true,
-    })
 
-  if (uploadError) {
-    return NextResponse.json({ error: uploadError.message }, { status: 500 })
+  const result = await writeRecordingChunk({
+    serviceRole,
+    recordingId: id,
+    chunkIndex,
+    buffer,
+    mimeType: chunk.type || 'audio/webm',
+    mediaSource: 'browser_mic',
+    durationMs: durationMsRaw ? Number(durationMsRaw) : null,
+    offsetMs: offsetMsRaw ? Number(offsetMsRaw) : null,
+  })
+
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status })
   }
 
-  const { error: insertError } = await admin.supabase
-    .from('engagement_recording_chunks')
-    .upsert(
-      {
-        recording_id: id,
-        chunk_index: chunkIndex,
-        storage_path: storagePath,
-        size_bytes: buffer.byteLength,
-        checksum,
-        mime_type: chunk.type || 'audio/webm',
-        duration_ms: durationMsRaw ? Number(durationMsRaw) : null,
-        offset_ms: offsetMsRaw ? Number(offsetMsRaw) : null,
-        status: 'uploaded'
-      },
-      { onConflict: 'recording_id,chunk_index' }
-    )
-
-  if (insertError) {
-    return NextResponse.json({ error: insertError.message }, { status: 500 })
-  }
-
-  return NextResponse.json({ ok: true, chunk_index: chunkIndex, storage_path: storagePath })
+  return NextResponse.json({ ok: true, chunk_index: chunkIndex, status: result.status, storage_path: result.storagePath })
 }

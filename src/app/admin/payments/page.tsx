@@ -29,8 +29,8 @@ export default function AdminPaymentsPage() {
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('all')
   
-  const sessionId = searchParams.get('session_id')
-  const success = searchParams.get('success')
+  const sessionId = searchParams?.get('session_id') ?? ''
+  const success = searchParams?.get('success')
 
   useEffect(() => {
     loadPayments()

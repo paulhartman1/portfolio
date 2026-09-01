@@ -56,7 +56,7 @@ type Message = {
 export default function ClientDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const clientId = params.id as string
+  const clientId = params?.id as string
 
   const [client, setClient] = useState<Profile | null>(null)
   const [projects, setProjects] = useState<Project[]>([])

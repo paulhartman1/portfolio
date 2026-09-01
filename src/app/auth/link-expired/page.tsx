@@ -11,8 +11,8 @@ type ResendState = "sending" | "sent" | "rate_limited" | "error";
 function LinkExpiredContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const email = searchParams.get("email");
-  const type = searchParams.get("type") === "invite" ? "invite" : "magiclink";
+  const email = searchParams?.get("email");
+  const type = searchParams?.get("type") === "invite" ? "invite" : "magiclink";
 
   const [state, setState] = useState<ResendState>("sending");
   const hasSentRef = useRef(false);

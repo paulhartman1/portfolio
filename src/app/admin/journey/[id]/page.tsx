@@ -44,7 +44,7 @@ type JourneyMap = {
 export default function EditJourneyMapPage() {
   const params = useParams()
   const router = useRouter()
-  const mapId = params.id as string
+  const mapId = params?.id as string | undefined ?? ''
 
   const [journeyMap, setJourneyMap] = useState<JourneyMap | null>(null)
   const [notes, setNotes] = useState<Note[]>([])

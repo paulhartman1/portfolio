@@ -28,7 +28,7 @@ type LinkRow = { id: string; experiment_id: string }
 
 export default function ProposalDetailPage() {
   const params = useParams()
-  const proposalId = params.id as string
+  const proposalId = (params?.id || '').toString()
 
   const [proposal, setProposal] = useState<Proposal | null>(null)
   const [project, setProject] = useState<ProjectLite | null>(null)
