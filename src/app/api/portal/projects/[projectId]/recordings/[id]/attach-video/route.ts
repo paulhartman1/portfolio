@@ -31,7 +31,7 @@ export async function POST(
 
   const { data: recording, error: recordingError } = await serviceRole
     .from('engagement_recordings')
-    .select('id, project_id, pipeline_status')
+    .select('id, project_id, pipeline_status, video_started_at')
     .eq('id', id)
     .eq('project_id', projectId)
     .maybeSingle()
@@ -56,17 +56,55 @@ export async function POST(
     .update({ recording_id: id })
     .eq('id', projectFileId)
 
+  // Read the most recent mic pairing's authoritative start time *before*
+  // revoking it below (revoke only touches status/revoked_at, but do this
+  // first regardless so the two operations can't race against each other).
+  const { data: pairing } = await serviceRole
+    .from('engagement_mic_pairings')
+    .select('server_started_at')
+    .eq('recording_id', id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
   // End the phone's ability to keep uploading/streaming, whether or not it
-  // ever actually connected.
+  // ever actually connected. Usually a no-op by now since the desktop's
+  // /stop route already revoked this pairing the moment the user clicked
+  // stop -- this is just a safety net for cases that bypassed /stop.
   await serviceRole
     .from('engagement_mic_pairings')
     .update({ status: 'revoked', revoked_at: new Date().toISOString() })
     .eq('recording_id', id)
     .in('status', ['pending', 'opened', 'permission_pending', 'active'])
 
+  // Compute the canonical-timeline sync offset now that both legs (if any)
+  // are done: timeline zero = whichever of video/audio started first
+  // (server-clock timestamps only, comparing two devices' own clocks would
+  // be unreliable). These are estimates -- each timestamp reflects roughly
+  // when the server received the corresponding start POST, not the exact
+  // instant capture began -- but they share one clock, which is what makes
+  // the comparison meaningful.
+  const videoStartedAt = recording.video_started_at ? new Date(recording.video_started_at).getTime() : null
+  const audioStartedAt = pairing?.server_started_at ? new Date(pairing.server_started_at).getTime() : null
+
+  let timelineStartedAt: number | null = null
+  let videoOffsetMs: number | null = null
+  if (videoStartedAt !== null) {
+    timelineStartedAt = audioStartedAt !== null ? Math.min(videoStartedAt, audioStartedAt) : videoStartedAt
+    videoOffsetMs = videoStartedAt - timelineStartedAt
+  }
+  const audioOffsetMs = timelineStartedAt !== null && audioStartedAt !== null
+    ? audioStartedAt - timelineStartedAt
+    : null
+
   await serviceRole
     .from('engagement_recordings')
-    .update({ pipeline_status: 'upload_complete', upload_completed_at: new Date().toISOString() })
+    .update({
+      pipeline_status: 'upload_complete',
+      upload_completed_at: new Date().toISOString(),
+      timeline_started_at: timelineStartedAt !== null ? new Date(timelineStartedAt).toISOString() : null,
+      video_offset_ms: videoOffsetMs,
+    })
     .eq('id', id)
 
   const { count: chunkCount } = await serviceRole
@@ -85,7 +123,7 @@ export async function POST(
     return NextResponse.json({ ok: true, audio: 'none' })
   }
 
-  const result = await assembleRecording(id)
+  const result = await assembleRecording(id, audioOffsetMs)
 
   if (!result.ok) {
     // Video is safe regardless; surface the audio-assembly problem without

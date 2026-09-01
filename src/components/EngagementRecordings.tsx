@@ -34,6 +34,12 @@ type Recording = {
   markers: Marker[]
   transcript: Transcript | null
   observations: TranscriptObservation[]
+  // Canonical-timeline sync fields (screen video vs. phone-mic audio).
+  // See attach-video/route.ts for how these are computed -- estimates
+  // based on server-receipt timestamps, not exact media-start instants.
+  video_started_at: string | null
+  timeline_started_at: string | null
+  video_offset_ms: number | null
 }
 
 type Utterance = {
@@ -55,6 +61,9 @@ type Transcript = {
   total_parts: number | null
   processed_parts: number
   clusters: SpeakerCluster[]
+  // Canonical-timeline seconds = utterance.start/.end + timeline_offset_ms / 1000.
+  // 0 when there's no phone-mic pairing to correlate against.
+  timeline_offset_ms: number | null
 }
 
 type SpeakerPerson = { id: string; display_name: string; company: string | null; title: string | null }
@@ -154,6 +163,16 @@ function formatTimestamp(totalSeconds: number) {
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString()
+}
+
+// video_offset_ms is always >= 0 by construction (timeline zero = whichever
+// of video/audio started first). A positive value means the phone's audio
+// started first and the video began that many ms into the audio track.
+function formatSyncOffset(videoOffsetMs: number | null) {
+  if (videoOffsetMs === null) return null
+  if (videoOffsetMs === 0) return 'Phone audio and screen recording started together'
+  const seconds = (videoOffsetMs / 1000).toFixed(1)
+  return `Phone audio started ${seconds}s before screen recording (est.)`
 }
 
 function getSelectionRange(
@@ -1087,6 +1106,9 @@ export default function EngagementRecordings({ projectId, clientId }: Engagement
                       <span>{recording.consent_given ? '✓ Consent' : 'No consent'}</span>
                       {recording.source_type && <span className="ml-2 text-xs font-medium text-[#6B6785]">Source: {recording.source_type}</span>}
                     </div>
+                    {formatSyncOffset(recording.video_offset_ms) && (
+                      <p className="mt-1 text-xs text-[#6B6785] italic">{formatSyncOffset(recording.video_offset_ms)}</p>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {!activePlayback && (

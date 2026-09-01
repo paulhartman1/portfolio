@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
 
   const { data: transcripts, error: transcriptsError } = await admin.supabase
     .from('engagement_transcripts')
-    .select('id, recording_id, full_text, utterances, speaker_count, duration_seconds, status, error_details, completed_at, processing_mode, total_parts, processed_parts')
+    .select('id, recording_id, full_text, utterances, speaker_count, duration_seconds, status, error_details, completed_at, processing_mode, total_parts, processed_parts, timeline_offset_ms')
     .in('recording_id', recordingIds)
 
   if (transcriptsError) {

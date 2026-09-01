@@ -26,7 +26,9 @@ export default function RecordScreenButton({ projectId }: Props) {
   const chunksRef = useRef<Blob[]>([])
   const startedRef = useRef(0)
   const pollRef = useRef<number | null>(null)
+  const statusRef = useRef<Status>('idle')
 
+  useEffect(() => { statusRef.current = status }, [status])
   useEffect(() => () => { streamsRef.current.forEach((s) => s.getTracks().forEach((t) => t.stop())); if (pollRef.current) window.clearInterval(pollRef.current) }, [])
   useEffect(() => { if (status !== 'recording') return; const id = window.setInterval(() => setElapsed(Math.floor((Date.now() - startedRef.current) / 1000)), 1000); return () => window.clearInterval(id) }, [status])
 
@@ -44,6 +46,14 @@ export default function RecordScreenButton({ projectId }: Props) {
         if (!response.ok) return
         const body = await response.json(); setPhoneStatus(body.status === 'active' ? 'Phone microphone connected ✓' : body.status === 'opened' ? 'Phone opened link' : body.status === 'error' ? 'Phone microphone error' : 'Waiting for phone...')
         if (body.status === 'active') setStatus('phone-ready')
+        // Phone tapped "Stop Microphone" voluntarily (status becomes
+        // 'disconnected') while we're still recording -- mirror that here
+        // instead of continuing to record video with no audio. This never
+        // fires from our own stop(): that revokes the pairing ('revoked'),
+        // a different status than the phone's own voluntary disconnect.
+        if (body.status === 'disconnected' && statusRef.current === 'recording') {
+          setMessage('Phone microphone stopped — ending recording.'); stop()
+        }
       }, 2000)
     } catch (error) { setStatus('error'); setMessage(error instanceof Error ? error.message : 'Could not pair phone.') }
   }
@@ -58,12 +68,26 @@ export default function RecordScreenButton({ projectId }: Props) {
       const recorder = new MediaRecorder(new MediaStream(tracks)); chunksRef.current = []
       recorder.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data) }
       recorder.onstop = () => void finish(recorder.mimeType || 'video/webm')
-      recorderRef.current = recorder; recorder.start(); startedRef.current = Date.now(); setElapsed(0); setStatus('recording')
+      recorderRef.current = recorder; recorder.start(); startedRef.current = Date.now()
+      // Tell server when recording actually started (same tick as Date.now above).
+      // This is subject to network latency like the phone's /start, documented as an estimate.
+      await fetch(`/api/portal/projects/${projectId}/recordings/${recordingId}/video-started`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      }); setElapsed(0); setStatus('recording')
       display.getVideoTracks()[0]?.addEventListener('ended', stop)
     } catch (error) { setStatus('idle'); setMessage(error instanceof Error ? error.message : 'Screen or microphone permission was denied.') }
   }
 
-  function stop() { if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop() }
+  function stop() {
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop()
+    // Revoke the phone pairing immediately (rather than waiting for the
+    // whole video blob to upload, which is when attach-video would
+    // otherwise do this) so the phone finds out within one heartbeat/chunk
+    // cycle instead of only once the recording is fully finalized.
+    if (recordingId) void fetch(`/api/portal/projects/${projectId}/recordings/${recordingId}/stop`, { method: 'POST' }).catch(() => {})
+  }
   async function finish(mimeType: string) {
     setStatus('uploading'); const blob = new Blob(chunksRef.current, { type: mimeType }); const { data: { user } } = await supabaseBrowser.auth.getUser()
     try {
@@ -78,5 +102,5 @@ export default function RecordScreenButton({ projectId }: Props) {
   }
 
   async function close() { if (status === 'recording') stop(); if (recordingId && status !== 'done') await fetch(`/api/portal/projects/${projectId}/recordings/${recordingId}/cancel`, { method: 'POST' }).catch(() => {}); setOpen(false); setStatus('idle'); setRecordingId(null); setQr(null); setMessage('') }
-  return <><button type="button" onClick={() => setOpen(true)} className="px-4 py-2 rounded-lg border border-white/25 text-white text-sm hover:bg-white/10">Record Screen</button>{open && <div className="fixed right-4 top-20 z-50 w-[280px] rounded-xl border border-[#290D47]/15 bg-white shadow-xl"><div className="flex justify-between border-b p-3"><b>Record screen</b><button onClick={() => void close()}>✕</button></div><div className="space-y-3 p-3"><fieldset disabled={!['idle', 'pairing', 'phone-ready'].includes(status)}><legend className="text-sm font-semibold">Microphone</legend>{(['computer', 'phone', 'none'] as MicMode[]).map((mode) => <label key={mode} className="block text-sm"><input type="radio" checked={micMode === mode} onChange={() => mode === 'phone' ? void choosePhone() : setMicMode(mode)} /> {mode === 'computer' ? 'This computer' : mode === 'phone' ? 'Use my phone' : 'No microphone'}</label>)}</fieldset>{qr && <div className="text-center text-xs text-[#6B6785]"><p>Scan this QR code with your phone.</p><img src={qr} alt="Phone microphone QR code" className="mx-auto my-2 h-48 w-48" /><p>{phoneStatus}</p></div>}{status === 'recording' && <div className="font-mono text-lg">{time(elapsed)}</div>}{status === 'uploading' && <p className="text-sm">Uploading recording...</p>}{(status === 'idle' || status === 'phone-ready') && <button disabled={micMode === 'phone' && status !== 'phone-ready'} onClick={() => void start()} className="w-full rounded-lg bg-[#00F5E4] px-3 py-2 text-sm font-medium disabled:opacity-40">Start Recording</button>}{status === 'recording' && <button onClick={stop} className="w-full rounded-lg bg-red-500 px-3 py-2 text-sm text-white">Stop Recording</button>}{message && <p className="text-xs text-red-600">{message}</p>}{status === 'done' && <button onClick={() => void close()} className="w-full rounded-lg border px-3 py-2 text-sm">Close</button>}</div></div>}</>
+  return <><button type="button" onClick={() => setOpen(true)} className="px-4 py-2 rounded-lg border border-white/25 text-white text-sm hover:bg-white/10">Record Screen</button>{open && <div className="fixed right-4 top-20 z-50 w-[280px] rounded-xl border border-[#290D47]/15 bg-white shadow-xl"><div className="flex justify-between border-b p-3"><b>Record screen</b><button onClick={() => void close()}>✕</button></div><div className="space-y-3 p-3"><fieldset disabled={!['idle', 'pairing', 'phone-ready'].includes(status)}><legend className="text-sm font-semibold">Microphone</legend>{(['computer', 'phone', 'none'] as MicMode[]).map((mode) => <label key={mode} className="block text-sm"><input type="radio" checked={micMode === mode} onChange={() => mode === 'phone' ? void choosePhone() : setMicMode(mode)} /> {mode === 'computer' ? 'This computer' : mode === 'phone' ? 'Use my phone' : 'No microphone'}</label>)}</fieldset>{qr && <div className="text-center text-xs text-[#6B6785]"><p>Scan this QR code with your phone.</p><img src={qr} alt="Phone microphone QR code" className="mx-auto my-2 h-48 w-48" /><p>{phoneStatus}</p></div>}{status === 'recording' && <div className="font-mono text-lg">{time(elapsed)}</div>}{status === 'recording' && micMode === 'phone' && <p className="text-xs text-[#6B6785]">Stopping here or on the phone ends both.</p>}{status === 'uploading' && <p className="text-sm">Uploading recording...</p>}{(status === 'idle' || status === 'phone-ready') && <button disabled={micMode === 'phone' && status !== 'phone-ready'} onClick={() => void start()} className="w-full rounded-lg bg-[#00F5E4] px-3 py-2 text-sm font-medium disabled:opacity-40">Start Recording</button>}{status === 'recording' && <button onClick={stop} className="w-full rounded-lg bg-red-500 px-3 py-2 text-sm text-white">Stop Recording</button>}{message && <p className="text-xs text-red-600">{message}</p>}{status === 'done' && <button onClick={() => void close()} className="w-full rounded-lg border px-3 py-2 text-sm">Close</button>}</div></div>}</>
 }

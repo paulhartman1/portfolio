@@ -77,7 +77,12 @@ export async function validateRecordingChunks(recordingId: string): Promise<Vali
   return result
 }
 
-export async function assembleRecording(recordingId: string) {
+// timelineOffsetMs: how many ms into the canonical recording timeline this
+// audio's own time-zero falls (0 if the audio started first/only, or if
+// the caller doesn't have timeline info -- e.g. the admin-recorder path
+// that doesn't have a paired video at all). See attach-video/route.ts for
+// where this is computed.
+export async function assembleRecording(recordingId: string, timelineOffsetMs: number | null = null) {
   const serviceRole = createServiceRoleClient()
 
   // 1. Transition to validating
@@ -166,6 +171,7 @@ export async function assembleRecording(recordingId: string) {
         format: 'audio/webm',
         duration_ms: totalDurationMs,
         checksum: combinedChecksum,
+        timeline_offset_ms: timelineOffsetMs ?? 0,
         source_manifest: {
           chunk_count: validation.chunks.length,
           chunks: validation.chunks.map(c => ({ id: c.id, index: c.chunk_index, checksum: c.checksum }))

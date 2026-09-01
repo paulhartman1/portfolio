@@ -15,6 +15,7 @@ export default function MicRecorderClient({ token }: Props) {
   const queueRef = useRef(Promise.resolve())
   const indexRef = useRef(0)
   const startedAtRef = useRef(0)
+  const stoppedRemotelyRef = useRef(false)
 
   useEffect(() => {
     fetch(`/api/record/mic/${encodeURIComponent(token)}`)
@@ -33,13 +34,45 @@ export default function MicRecorderClient({ token }: Props) {
   useEffect(() => {
     if (state !== 'recording') return
     const timer = window.setInterval(() => setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000)), 1000)
-    const heartbeat = window.setInterval(() => {
-      void fetch(`/api/record/mic/${encodeURIComponent(token)}/heartbeat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'active' }) })
-    }, 10000)
+    // Shortened from 10s so a desktop-initiated stop is detected reasonably
+    // quickly -- this is also how the phone finds out the screen recording
+    // ended: the desktop revokes this pairing immediately on stop, and the
+    // very next heartbeat comes back 410 ("This link has been revoked."),
+    // which stopRemotely() below treats as "the other side stopped."
+    const heartbeat = window.setInterval(async () => {
+      const response = await fetch(`/api/record/mic/${encodeURIComponent(token)}/heartbeat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'active' }) }).catch(() => null)
+      if (response && response.status === 410) {
+        void stopRemotely('Screen recording ended — microphone stopped too.')
+      }
+    }, 5000)
     return () => { window.clearInterval(timer); window.clearInterval(heartbeat) }
   }, [state, token])
 
+  // The desktop stopped (or the pairing was otherwise revoked) -- stop
+  // locally too instead of leaving the phone recording into the void.
+  // Deliberately does NOT call the phone's own /stop route: the pairing is
+  // already 'revoked' server-side, and /stop only transitions from
+  // pending/opened/permission_pending/active, so it would be a no-op --
+  // this just mirrors that state locally.
+  async function stopRemotely(message: string) {
+    if (stoppedRemotelyRef.current) return
+    stoppedRemotelyRef.current = true
+    const recorder = recorderRef.current
+    if (recorder && recorder.state !== 'inactive') {
+      await new Promise<void>((resolve) => {
+        recorder.addEventListener('stop', () => resolve(), { once: true })
+        recorder.stop()
+      })
+    }
+    await queueRef.current.catch(() => {})
+    streamRef.current?.getTracks().forEach((track) => track.stop())
+    recorderRef.current = null
+    setMessage(message)
+    setState('stopped')
+  }
+
   async function start() {
+    stoppedRemotelyRef.current = false
     setState('permission')
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -60,6 +93,7 @@ export default function MicRecorderClient({ token }: Props) {
           for (let attempt = 0; attempt < 3; attempt++) {
             const result = await fetch(`/api/record/mic/${encodeURIComponent(token)}/chunk`, { method: 'POST', body: form })
             if (result.ok) return
+            if (result.status === 410) { void stopRemotely('Screen recording ended — microphone stopped too.'); return }
             if (attempt === 2) throw new Error('A microphone chunk could not be uploaded.')
             await new Promise((resolve) => window.setTimeout(resolve, 750 * (attempt + 1)))
           }
@@ -101,7 +135,7 @@ export default function MicRecorderClient({ token }: Props) {
       {state === 'loading' && <p>Checking recording link...</p>}
       {state === 'error' && <p className="text-red-300">{message}</p>}
       {(state === 'ready' || state === 'permission') && <button onClick={() => void start()} disabled={state === 'permission'} className="w-full rounded-lg bg-[#00F5E4] px-4 py-3 font-semibold text-[#1A0F2E] disabled:opacity-50">{state === 'permission' ? 'Requesting microphone...' : 'Start Microphone'}</button>}
-      {state === 'recording' && <div className="space-y-5"><p className="text-lg">Microphone recording</p><p className="font-mono text-4xl">{new Date(elapsed * 1000).toISOString().slice(11, 19)}</p><p className="text-sm text-[#F8F7F5]/70">Your screen recording is running on the other computer.</p><button onClick={() => void stop()} className="w-full rounded-lg bg-red-500 px-4 py-3 font-semibold">Stop Microphone</button></div>}
+      {state === 'recording' && <div className="space-y-5"><p className="text-lg">Microphone recording</p><p className="font-mono text-4xl">{new Date(elapsed * 1000).toISOString().slice(11, 19)}</p><p className="text-sm text-[#F8F7F5]/70">Your screen recording is running on the other computer. Stopping here or there ends both.</p><button onClick={() => void stop()} className="w-full rounded-lg bg-red-500 px-4 py-3 font-semibold">Stop Microphone</button></div>}
       {state === 'stopped' && <p>Microphone stopped. You can close this page.</p>}
       {message && state !== 'error' && <p className="text-sm text-red-300">{message}</p>}
     </section>

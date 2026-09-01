@@ -275,7 +275,7 @@ export async function transcribeRecording(recordingId: string) {
     // Check for existing extracted audio revision (for uploaded video path)
     const { data: audioRevision } = await serviceRole
       .from('engagement_recording_revisions')
-      .select('id, storage_path, format')
+      .select('id, storage_path, format, timeline_offset_ms')
       .eq('recording_id', recordingId)
       .order('revision_number', { ascending: false })
       .limit(1)
@@ -321,6 +321,11 @@ export async function transcribeRecording(recordingId: string) {
         error_details: null,
         requested_at: new Date().toISOString(),
         completed_at: null,
+        // Carried from the revision so utterance start/end seconds can be
+        // converted to canonical-recording-timeline seconds later via
+        // `utterance.start + timeline_offset_ms / 1000`, without needing to
+        // join back through revisions/mic-pairings at read time.
+        timeline_offset_ms: audioRevision?.timeline_offset_ms ?? 0,
       }, { onConflict: 'recording_id' })
       .select('id')
       .single()
