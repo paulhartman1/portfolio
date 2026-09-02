@@ -91,6 +91,8 @@ export default async function DynamicProposalPage({
 
   return (
     <StandardProposalContent
+      id={proposal.id}
+      versionId={version.id}
       title={proposal.title}
       amount={proposal.amount}
       timeline={proposal.timeline}
