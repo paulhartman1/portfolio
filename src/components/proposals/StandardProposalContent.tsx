@@ -9,7 +9,7 @@ type Experiment = {
 
 type Props = {
   title: string
-  amount: number
+  amount?: number | null
   timeline: string
   experiments: Experiment[]
   stripeUrl?: string | null
@@ -26,8 +26,8 @@ export default function StandardProposalContent({
   depositAmount,
   subdomain
 }: Props) {
-  const displayDeposit = depositAmount || amount
-  const paymentRequired = displayDeposit > 0
+  const displayDeposit = (depositAmount ?? amount) || 0
+  const paymentRequired = amount != null && amount > 0
   
   return (
     <div className="max-w-3xl mx-auto py-12 px-6 bg-[#fdfcf9] text-[#2c3e50] font-serif">
@@ -70,7 +70,7 @@ export default function StandardProposalContent({
         <div className="flex flex-wrap gap-8 items-center">
           <div>
             <p className="text-xs uppercase tracking-widest text-[#7f8c8d]">Total Investment</p>
-            <p className="text-3xl font-bold text-[#27ae60]">${amount.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-[#27ae60]">${(amount || 0).toLocaleString()}</p>
           </div>
           <div>
             <p className="text-xs uppercase tracking-widest text-[#7f8c8d]">Estimated Timeline</p>
@@ -103,7 +103,7 @@ export default function StandardProposalContent({
               </svg>
               Accept & Pay Deposit
             </a>
-          ) : paymentRequired ? (
+          ) : amount == null || paymentRequired ? (
             <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 italic">
               Proposal is pending finalized payment link.
             </div>

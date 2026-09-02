@@ -92,7 +92,7 @@ export default async function DynamicProposalPage({
   return (
     <StandardProposalContent
       title={proposal.title}
-      amount={Number(proposal.amount)}
+      amount={proposal.amount}
       timeline={proposal.timeline}
       experiments={experiments}
       stripeUrl={proposal.stripe_payment_link_url}
