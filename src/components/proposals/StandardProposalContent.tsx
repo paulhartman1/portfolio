@@ -27,6 +27,7 @@ export default function StandardProposalContent({
   subdomain
 }: Props) {
   const displayDeposit = depositAmount || amount
+  const paymentRequired = displayDeposit > 0
   
   return (
     <div className="max-w-3xl mx-auto py-12 px-6 bg-[#fdfcf9] text-[#2c3e50] font-serif">
@@ -102,11 +103,11 @@ export default function StandardProposalContent({
               </svg>
               Accept & Pay Deposit
             </a>
-          ) : (
+          ) : paymentRequired ? (
             <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 italic">
               Proposal is pending finalized payment link.
             </div>
-          )}
+          ) : null}
 
           <div className="mt-4 pt-8 border-t border-[#ecf0f1] w-full max-w-sm">
             <p className="text-sm text-[#7f8c8d] mb-4 italic">

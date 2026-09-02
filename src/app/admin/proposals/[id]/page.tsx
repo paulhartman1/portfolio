@@ -220,11 +220,15 @@ export default function ProposalDetailPage() {
 
     // Auto-generate the Stripe deposit link the moment a proposal goes out,
     // so the client never sees a "pending payment link" state. Only runs if
-    // an amount is set and a link doesn't already exist.
+    // a positive amount is set and a link doesn't already exist. A $0
+    // amount/deposit means no payment is required, so we skip generation
+    // entirely instead of attempting (and failing) to create a Stripe link.
+    const effectiveDeposit = proposal.deposit_amount ?? proposal.amount
     if (
       newStatus === 'sent' &&
       !proposal.stripe_payment_link_url &&
-      (proposal.deposit_amount != null || proposal.amount != null)
+      effectiveDeposit != null &&
+      Number(effectiveDeposit) > 0
     ) {
       const ok = await generatePaymentLink()
       if (!ok) {
@@ -293,6 +297,10 @@ export default function ProposalDetailPage() {
 
   const linkedIds = new Set(links.map((l) => l.experiment_id))
   const suggested = suggestKind(links.length)
+  const effectiveDepositInput =
+    depositAmount.trim() !== '' ? Number(depositAmount) : amount.trim() !== '' ? Number(amount) : null
+  const canGeneratePaymentLink =
+    effectiveDepositInput != null && !Number.isNaN(effectiveDepositInput) && effectiveDepositInput > 0
 
   return (
     <div className="max-w-5xl">
@@ -438,12 +446,13 @@ export default function ProposalDetailPage() {
             ) : (
               <div className="rounded-lg border border-[#E8E4EF] bg-[#F8F7F5] p-3">
                 <p className="text-sm text-[#6B6785] mb-2">
-                  No Stripe payment link yet. It will be created automatically
-                  when this proposal is sent, or you can generate one now.
+                  {canGeneratePaymentLink
+                    ? 'No Stripe payment link yet. It will be created automatically when this proposal is sent, or you can generate one now.'
+                    : 'Set a positive amount or deposit amount to generate a Stripe payment link. A $0 proposal requires no payment.'}
                 </p>
                 <button
                   onClick={generatePaymentLink}
-                  disabled={generatingLink || (proposal.amount == null && depositAmount.trim() === '')}
+                  disabled={generatingLink || !canGeneratePaymentLink}
                   className="px-3 py-2 rounded-lg bg-[#290D47] text-white text-xs font-semibold hover:opacity-90 disabled:opacity-50"
                 >
                   {generatingLink ? 'Generating...' : 'Generate Stripe payment link'}
