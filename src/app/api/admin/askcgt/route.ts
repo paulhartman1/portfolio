@@ -19,13 +19,17 @@ export async function POST(request: NextRequest) {
 
   let projectId: string | undefined
   let question: string | undefined
+  let experimentId: string | undefined
   try {
     const body = await request.json()
     projectId = body?.projectId?.toString()
     question = body?.question?.toString()
+    // Optional. When present, retrieval verifies it belongs to projectId.
+    experimentId = body?.experimentId ? body.experimentId.toString() : undefined
   } catch {
     projectId = undefined
     question = undefined
+    experimentId = undefined
   }
 
   if (!projectId) {
@@ -33,13 +37,19 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await askCgt({ supabase: admin.supabase, projectId, question: question || '' })
+    const result = await askCgt({
+      supabase: admin.supabase,
+      projectId,
+      question: question || '',
+      experimentId: experimentId || null,
+    })
     return NextResponse.json({ ...result })
   } catch (error) {
     if (error instanceof AskCgtError) {
       const status =
         error.code === 'invalid_input' ? 400
         : error.code === 'project_not_found' ? 404
+        : error.code === 'experiment_not_found' ? 404
         : error.code === 'model_unavailable' ? 503
         : error.code === 'provider_failure' ? 502
         : 502

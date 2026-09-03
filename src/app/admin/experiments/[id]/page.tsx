@@ -4,6 +4,9 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabaseBrowser } from '@/utils/supabase/client'
+import { AskCgt } from '@/components/AskCgt'
+import { WorkInventory } from './WorkInventory'
+import { DecisionsPanel } from './DecisionsPanel'
 import {
   Confidence,
   Experiment,
@@ -532,6 +535,24 @@ export default function ExperimentDetailPage() {
             onChange={setLinks}
           />
         </div>
+      </div>
+
+      {/* The artifacts this experiment produces. Stored durably so AskCGT can
+          reason over them and so EXP-003's numeric criteria are computable. */}
+      <div className="mt-6 space-y-6">
+        <WorkInventory projectId={experiment.project_id} experimentId={experiment.id} />
+        <DecisionsPanel projectId={experiment.project_id} experimentId={experiment.id} />
+      </div>
+
+      {/* AskCGT, scoped to this experiment. experimentId is passed explicitly
+          so AskCGT never has to infer the subject from the question text. */}
+      <div className="mt-6">
+        <AskCgt
+          projectId={experiment.project_id}
+          projectName={project?.name || 'this project'}
+          experimentId={experiment.id}
+          experimentLabel={`${experiment.code} ${experiment.title}`}
+        />
       </div>
     </div>
   )

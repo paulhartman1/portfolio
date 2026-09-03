@@ -1,5 +1,5 @@
 import { AskCgtAllowedIds } from './retrieve'
-import { AskCgtAnswer, AskCgtConclusion, CONCLUSION_KINDS, ConclusionKind, EVIDENCE_TYPES, EvidenceType } from './types'
+import { AskCgtAnswer, AskCgtCitationAudit, AskCgtConclusion, CONCLUSION_KINDS, ConclusionKind, EVIDENCE_TYPES, EvidenceType } from './types'
 
 /**
  * Strict validation of AskCGT model output.
@@ -18,7 +18,9 @@ export const MAX_UTTERANCE_IDS = 40
 export const MAX_UNKNOWNS = 20
 export const MAX_UNKNOWN_CHARS = 800
 
-export type ParseResult = { ok: true; answer: AskCgtAnswer } | { ok: false; reason: string }
+export type ParseResult =
+  | { ok: true; answer: AskCgtAnswer; citations: AskCgtCitationAudit }
+  | { ok: false; reason: string }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null
@@ -61,15 +63,23 @@ function validateEvidenceRef(raw: unknown, allowed: AskCgtAllowedIds): { type: E
     return { type, id, utteranceIds: scoped }
   }
 
+  // Every citable type must map to an allow-list set. A type with no set would
+  // silently accept anything, so the mapping is exhaustive by construction.
   const set =
     type === 'observation' ? allowed.observations
     : type === 'marker' ? allowed.markers
-    : allowed.candidates
+    : type === 'candidate' ? allowed.candidates
+    : type === 'experiment' ? allowed.experiments
+    : type === 'proposal' ? allowed.proposals
+    : type === 'work_item' ? allowed.workItems
+    : allowed.decisions
   if (!set.has(id)) return null
   return { type, id }
 }
 
-function validateConclusion(raw: unknown, allowed: AskCgtAllowedIds): AskCgtConclusion | null {
+type ConclusionResult = { conclusion: AskCgtConclusion; submitted: number; accepted: number }
+
+function validateConclusion(raw: unknown, allowed: AskCgtAllowedIds): ConclusionResult | null {
   const record = asRecord(raw)
   if (!record) return null
 
@@ -84,14 +94,16 @@ function validateConclusion(raw: unknown, allowed: AskCgtAllowedIds): AskCgtConc
   const reasoning = asString(record.reasoning, MAX_REASONING_CHARS) ?? null
 
   let evidence: AskCgtConclusion['evidence'] = []
+  let submitted = 0
   if (Array.isArray(record.evidence)) {
+    submitted = record.evidence.length
     evidence = record.evidence
       .map((ref) => validateEvidenceRef(ref, allowed))
       .filter((ref): ref is { type: EvidenceType; id: string; utteranceIds?: string[] } => Boolean(ref))
       .slice(0, MAX_EVIDENCE_REFS)
   }
 
-  return { statement, kind, confidence, reasoning, evidence }
+  return { conclusion: { statement, kind, confidence, reasoning, evidence }, submitted, accepted: evidence.length }
 }
 
 export function validateAnswer(raw: unknown, allowed: AskCgtAllowedIds): ParseResult {
@@ -102,11 +114,15 @@ export function validateAnswer(raw: unknown, allowed: AskCgtAllowedIds): ParseRe
   if (!answer) return { ok: false, reason: 'missing answer text' }
 
   const conclusions: AskCgtConclusion[] = []
+  let submitted = 0
+  let accepted = 0
   if (Array.isArray(record.conclusions)) {
     for (const item of record.conclusions) {
-      const conclusion = validateConclusion(item, allowed)
-      if (conclusion) {
-        conclusions.push(conclusion)
+      const result = validateConclusion(item, allowed)
+      if (result) {
+        conclusions.push(result.conclusion)
+        submitted += result.submitted
+        accepted += result.accepted
         if (conclusions.length >= MAX_CONCLUSIONS) break
       }
     }
@@ -120,5 +136,9 @@ export function validateAnswer(raw: unknown, allowed: AskCgtAllowedIds): ParseRe
       .slice(0, MAX_UNKNOWNS)
   }
 
-  return { ok: true, answer: { answer, conclusions, unknowns } }
+  return {
+    ok: true,
+    answer: { answer, conclusions, unknowns },
+    citations: { submitted, accepted, rejected: Math.max(0, submitted - accepted) },
+  }
 }

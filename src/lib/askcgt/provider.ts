@@ -1,5 +1,6 @@
 import { generateStructuredJson as generateOpenAiJson, OpenAiProviderError, resolveOpenAiConfig, OpenAiConfig, OpenAiResponseMeta } from './openai'
 import { generateAnthropicJson, resolveAnthropicConfig, AnthropicConfig } from '@/lib/project-intelligence/anthropic'
+import { ProviderError } from '@/lib/project-intelligence/provider'
 import { generateStructuredJson as generateOllamaJson, resolveOllamaConfig, OllamaConfig } from '@/lib/project-intelligence/ollama'
 
 /**
@@ -10,13 +11,21 @@ import { generateStructuredJson as generateOllamaJson, resolveOllamaConfig, Olla
  * provider and calls generateAnswer. Swapping or routing models later means
  * changing this file (or its environment configuration), not AskCGT.
  *
- * Provider selection (default: openai):
- *   ASK_CGT_PROVIDER=openai|anthropic|ollama
+ * Provider selection, highest precedence first:
+ *   ASK_CGT_PROVIDER   AskCGT-specific override (openai|anthropic|ollama)
+ *   AI_PROVIDER        the application-wide provider used by the rest of CGT
+ *   'anthropic'        default, matching AI_PROVIDER's own default
+ *
+ * AskCGT previously defaulted to OpenAI and ignored AI_PROVIDER entirely, so a
+ * deployment configured with AI_PROVIDER=anthropic silently required an
+ * unrelated OPENAI_API_KEY and an OpenAI model name. Honoring AI_PROVIDER
+ * keeps AskCGT on the same provider as project-intelligence unless Paul
+ * deliberately overrides it.
  *
  * Model selection:
- *   ASK_CGT_MODEL (openai, default gpt-5.6-luna)
- *   ANTHROPIC_MODEL (anthropic)
- *   OLLAMA_MODEL (ollama)
+ *   ASK_CGT_MODEL (openai, default gpt-4o)
+ *   ANTHROPIC_MODEL (anthropic, default claude-sonnet-4-6)
+ *   OLLAMA_MODEL (ollama, default qwen3:8b)
  */
 
 export const ASK_CGT_PROVIDER_KINDS = ['openai', 'anthropic', 'ollama'] as const
@@ -36,7 +45,17 @@ export type AskCgtProviderResult = {
   meta?: OpenAiResponseMeta
 }
 
-export type AskCgtProviderErrorKind = 'not_configured' | 'auth' | 'rate_limit' | 'timeout' | 'overloaded' | 'unavailable' | 'invalid_response' | 'unknown'
+export const ASK_CGT_ERROR_KINDS = [
+  'not_configured',
+  'auth',
+  'rate_limit',
+  'timeout',
+  'overloaded',
+  'unavailable',
+  'invalid_response',
+  'unknown',
+] as const
+export type AskCgtProviderErrorKind = (typeof ASK_CGT_ERROR_KINDS)[number]
 
 export class AskCgtProviderError extends Error {
   readonly provider: AskCgtProviderKind
@@ -51,9 +70,48 @@ export class AskCgtProviderError extends Error {
   }
 }
 
+export const DEFAULT_ASK_CGT_PROVIDER: AskCgtProviderKind = 'anthropic'
+
+function normalizeProvider(raw: string | undefined): AskCgtProviderKind | null {
+  if (!raw) return null
+  const value = raw.toLowerCase().trim()
+  if (!value) return null
+  return ASK_CGT_PROVIDER_KINDS.includes(value as AskCgtProviderKind) ? (value as AskCgtProviderKind) : null
+}
+
+/**
+ * The configured provider. ASK_CGT_PROVIDER wins; otherwise AskCGT follows the
+ * application-wide AI_PROVIDER so one deployment variable governs both
+ * features. An unrecognized value is reported rather than silently coerced.
+ */
 export function resolveProvider(): AskCgtProviderKind {
-  const raw = (process.env.ASK_CGT_PROVIDER || 'openai').toLowerCase().trim()
-  return ASK_CGT_PROVIDER_KINDS.includes(raw as AskCgtProviderKind) ? (raw as AskCgtProviderKind) : 'openai'
+  const explicit = process.env.ASK_CGT_PROVIDER?.trim()
+  if (explicit) {
+    const resolved = normalizeProvider(explicit)
+    if (!resolved) {
+      throw new AskCgtProviderError(
+        DEFAULT_ASK_CGT_PROVIDER,
+        'not_configured',
+        `ASK_CGT_PROVIDER="${explicit}" is not a supported AskCGT provider. Use one of: ${ASK_CGT_PROVIDER_KINDS.join(', ')}.`
+      )
+    }
+    return resolved
+  }
+
+  const shared = process.env.AI_PROVIDER?.trim()
+  if (shared) {
+    const resolved = normalizeProvider(shared)
+    if (!resolved) {
+      throw new AskCgtProviderError(
+        DEFAULT_ASK_CGT_PROVIDER,
+        'not_configured',
+        `AI_PROVIDER="${shared}" is not a provider AskCGT supports. Set ASK_CGT_PROVIDER to one of: ${ASK_CGT_PROVIDER_KINDS.join(', ')}.`
+      )
+    }
+    return resolved
+  }
+
+  return DEFAULT_ASK_CGT_PROVIDER
 }
 
 /** Resolved model name for the configured provider (for usage reporting). */
@@ -64,13 +122,46 @@ export function resolveModelName(): string {
   return resolveOllamaConfig().model
 }
 
-/** Lightweight preflight: required credential present. */
+/**
+ * Preflight the credential the SELECTED provider actually requires.
+ *
+ * Previously only the OpenAI branch was checked, so an anthropic/ollama
+ * deployment passed preflight with no credential and failed later inside the
+ * vendor call with a vaguer error. Never include a secret value in the
+ * message — only the variable name.
+ */
 export function preflight(provider: AskCgtProviderKind): void {
   if (provider === 'openai') {
     const config = resolveOpenAiConfig()
     if (!config.apiKey) {
-      throw new AskCgtProviderError('openai', 'not_configured', 'OPENAI_API_KEY is not set. AskCGT uses OpenAI (gpt-5.6-luna) by default.')
+      throw new AskCgtProviderError(
+        'openai',
+        'not_configured',
+        `OPENAI_API_KEY is not set, but AskCGT resolved provider "openai" (model ${config.model}). Set OPENAI_API_KEY, or set ASK_CGT_PROVIDER/AI_PROVIDER to a configured provider.`
+      )
     }
+    return
+  }
+
+  if (provider === 'anthropic') {
+    const config = resolveAnthropicConfig()
+    if (!config.apiKey) {
+      throw new AskCgtProviderError(
+        'anthropic',
+        'not_configured',
+        `ANTHROPIC_API_KEY is not set, but AskCGT resolved provider "anthropic" (model ${config.model}). Set ANTHROPIC_API_KEY, or set ASK_CGT_PROVIDER to a configured provider.`
+      )
+    }
+    return
+  }
+
+  const config = resolveOllamaConfig()
+  if (!config.baseUrl) {
+    throw new AskCgtProviderError(
+      'ollama',
+      'not_configured',
+      'OLLAMA_BASE_URL is not set and no default could be resolved for AskCGT provider "ollama".'
+    )
   }
 }
 
@@ -118,6 +209,17 @@ export function mapProviderError(provider: AskCgtProviderKind, error: unknown): 
       : error.kind === 'non_json' ? 'invalid_response'
       : 'unknown'
     return new AskCgtProviderError('openai', kind, error.message, error.status)
+  }
+
+  // anthropic/ollama surface project-intelligence's ProviderError. Its `kind`
+  // vocabulary overlaps ours, so carry it across instead of flattening every
+  // anthropic failure to 'unknown' (which would misreport a missing key or a
+  // rate limit as an unexplained provider failure).
+  if (error instanceof ProviderError) {
+    const kind: AskCgtProviderErrorKind = (ASK_CGT_ERROR_KINDS as readonly string[]).includes(error.kind)
+      ? (error.kind as AskCgtProviderErrorKind)
+      : 'unknown'
+    return new AskCgtProviderError(provider, kind, error.message, error.status)
   }
 
   return new AskCgtProviderError(provider, 'unknown', error instanceof Error ? error.message : String(error))

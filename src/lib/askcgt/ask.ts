@@ -1,7 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import { buildSystemPrompt, buildUserPrompt } from './context'
 import { generateAnswer, mapProviderError, preflight, resolveModelName, resolveProvider } from './provider'
-import { AskCgtAnswer, AskCgtUsage } from './types'
+import { AskCgtAnswer, AskCgtCitationAudit, AskCgtUsage } from './types'
 import { retrieveProjectEvidence } from './retrieve'
 import { validateAnswer } from './validation'
 
@@ -19,7 +19,13 @@ import { validateAnswer } from './validation'
  */
 
 export class AskCgtError extends Error {
-  readonly code: 'invalid_input' | 'project_not_found' | 'model_unavailable' | 'provider_failure' | 'invalid_model_output'
+  readonly code:
+    | 'invalid_input'
+    | 'project_not_found'
+    | 'experiment_not_found'
+    | 'model_unavailable'
+    | 'provider_failure'
+    | 'invalid_model_output'
   constructor(code: AskCgtError['code'], message: string) {
     super(message)
     this.name = 'AskCgtError'
@@ -33,15 +39,23 @@ export type AskCgtRequest = {
   supabase: SupabaseClient
   projectId: string
   question: string
+  /**
+   * The experiment Paul is viewing, when AskCGT was invoked from an experiment
+   * page. Verified to belong to projectId during retrieval. Omit for the
+   * project-level entry point.
+   */
+  experimentId?: string | null
 }
 
 export type AskCgtResult = {
   answer: AskCgtAnswer
   usage: AskCgtUsage
+  /** How many of the model's citations survived validation. */
+  citations: AskCgtCitationAudit
 }
 
 export async function askCgt(request: AskCgtRequest): Promise<AskCgtResult> {
-  const { supabase, projectId, question } = request
+  const { supabase, projectId, question, experimentId } = request
   const log = (message: string, extra?: Record<string, unknown>) =>
     console.log(`[askcgt] ${message}`, extra ? JSON.stringify(extra) : '')
   const startedAt = Date.now()
@@ -54,11 +68,15 @@ export async function askCgt(request: AskCgtRequest): Promise<AskCgtResult> {
     throw new AskCgtError('invalid_input', `Question must be ${MAX_QUESTION_CHARS} characters or fewer`)
   }
 
-  const provider = resolveProvider()
+  // resolveProvider throws on an unrecognized configured value, so it is
+  // inside the same guard as preflight: a misconfigured deployment must
+  // produce a clear diagnostic, not an unhandled crash.
+  let provider
   try {
+    provider = resolveProvider()
     preflight(provider)
   } catch (error) {
-    const mapped = mapProviderError(provider, error)
+    const mapped = mapProviderError(provider ?? 'anthropic', error)
     throw new AskCgtError('model_unavailable', mapped.message)
   }
 
@@ -67,21 +85,28 @@ export async function askCgt(request: AskCgtRequest): Promise<AskCgtResult> {
   // nothing and AskCGT stops.
   let context
   try {
-    const retrieved = await retrieveProjectEvidence(supabase, projectId)
+    const retrieved = await retrieveProjectEvidence(supabase, projectId, { experimentId })
     context = retrieved
   } catch (error) {
     if (error instanceof Error && error.message === 'Project not found') {
       throw new AskCgtError('project_not_found', error.message)
+    }
+    if (error instanceof Error && error.message === 'Experiment not found') {
+      throw new AskCgtError('experiment_not_found', error.message)
     }
     throw error
   }
 
   log('retrieve:done', {
     projectId,
+    experimentId: experimentId || null,
+    activeExperiment: context.context.activeExperiment?.code || null,
+    activeExperimentProposals: context.context.activeExperimentProposals.length,
     transcripts: context.context.transcripts.length,
     observations: context.context.observations.length,
     markers: context.context.markers.length,
     candidates: context.context.candidates.length,
+    experiments: context.context.experiments.length,
     evidenceItemsRetrieved: context.evidenceItemsRetrieved,
   })
 
@@ -156,6 +181,16 @@ export async function askCgt(request: AskCgtRequest): Promise<AskCgtResult> {
     durationMs: Date.now() - startedAt,
     evidenceItemsRetrieved: context.evidenceItemsRetrieved,
   }
+  if (parsed.citations.rejected > 0) {
+    // Not fatal, but Paul must be able to see that the answer is less
+    // grounded than its prose implies.
+    log('validation:citations-rejected', {
+      submitted: parsed.citations.submitted,
+      accepted: parsed.citations.accepted,
+      rejected: parsed.citations.rejected,
+    })
+  }
+
   log('done', {
     totalMs: usage.durationMs,
     model: usage.model,
@@ -165,7 +200,9 @@ export async function askCgt(request: AskCgtRequest): Promise<AskCgtResult> {
     conclusions: parsed.answer.conclusions.length,
     unknowns: parsed.answer.unknowns.length,
     conclusionEvidenceCount,
+    citationsSubmitted: parsed.citations.submitted,
+    citationsRejected: parsed.citations.rejected,
   })
 
-  return { answer: parsed.answer, usage }
+  return { answer: parsed.answer, usage, citations: parsed.citations }
 }

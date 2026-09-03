@@ -8,7 +8,7 @@ import { ProviderMessage } from './provider'
  * Model, key, base URL, and limits come from environment variables so the
  * model can be swapped without touching AskCGT code:
  *   OPENAI_API_KEY        (required)
- *   ASK_CGT_MODEL         (default gpt-5.6-luna)
+ *   ASK_CGT_MODEL         (default gpt-4o)
  *   ASK_CGT_BASE_URL      (default https://api.openai.com/v1)
  *   ASK_CGT_MAX_TOKENS    (default 8192)
  *   ASK_CGT_TIMEOUT_MS    (default 120000)
@@ -45,7 +45,15 @@ export type OpenAiConfig = {
   requestTimeoutMs: number
 }
 
-export const DEFAULT_ASK_CGT_MODEL = 'gpt-5.6-luna'
+/**
+ * Default OpenAI model for AskCGT.
+ *
+ * This was previously "gpt-5.6-luna", which is not a model the OpenAI API
+ * serves — any request using it would have failed with a model-not-found
+ * error. gpt-4o is a real model that supports the json_schema response
+ * format AskCGT relies on.
+ */
+export const DEFAULT_ASK_CGT_MODEL = 'gpt-4o'
 
 export function resolveOpenAiConfig(): OpenAiConfig {
   const baseUrl = (process.env.ASK_CGT_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '')

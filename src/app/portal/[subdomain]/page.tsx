@@ -76,14 +76,28 @@ export default async function ClientPortalPage({
     (linkedExperiments || []).map((r) => r.experiment_id)
   )
 
-  // Experiments visible to the client (RLS restricts to non-draft),
-  // excluding those already presented in a pending sent proposal.
-  const { data: experiments } = await supabase
+  // Experiments visible to the client (RLS restricts visibility), excluding
+  // those already presented in a pending sent proposal.
+  let experimentQuery = supabase
     .from('experiments')
     .select('id, code, title, slug, status')
     .eq('project_id', project.id)
     .order('experiment_number', { ascending: true })
-    .filter('id', 'not.in', coveredExperimentIds)
+
+  // PostgREST expects a parenthesized comma-separated list, not a JavaScript
+  // Set. Avoid sending a not.in filter when there is nothing to exclude.
+  if (coveredExperimentIds.size > 0) {
+    experimentQuery = experimentQuery.filter(
+      'id',
+      'not.in',
+      `(${Array.from(coveredExperimentIds).join(',')})`
+    )
+  }
+
+  const { data: experiments, error: experimentsError } = await experimentQuery
+  if (experimentsError) {
+    console.error('Error loading portal experiments:', experimentsError.message)
+  }
 
   const showWorkingSite = Boolean(project.url)
   const showReviewFeedback = openComments > 0

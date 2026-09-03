@@ -1,4 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js'
+import { computeWorkMeasures, CriterionResult, evaluateExp003Criteria, WorkMeasures } from '@/lib/work/measures'
+import { Decision, EvidenceLink, WorkItem, WorkItemEvent } from '@/lib/work/types'
 
 /**
  * Project-scoped evidence retrieval for AskCGT.
@@ -39,6 +41,7 @@ export type AskCgtMarker = {
   noteType: string
   noteText: string | null
   timestampSeconds: number
+  created_at: string | null
 }
 
 export type AskCgtCandidate = {
@@ -52,8 +55,8 @@ export type AskCgtCandidate = {
   status: string
   provider: string
   model: string
+  created_at: string | null
   evidence: Array<{ transcript_id: string; utterance_ids: string[]; role: string }>
-
 }
 export type AskCgtExperiment = {
   id: string
@@ -76,6 +79,69 @@ export type AskCgtExperiment = {
   resulting_decision: string | null
   confidence: string | null
   design: Record<string, unknown>
+  /** Lifecycle dates, present only on the ACTIVE experiment. */
+  created_at?: string | null
+  proposed_at?: string | null
+  approved_at?: string | null
+  activated_at?: string | null
+  completed_at?: string | null
+}
+
+/**
+ * A proposal connected to the active experiment via proposal_experiments.
+ *
+ * This exists so AskCGT can establish approval provenance — whether a
+ * commercial commitment covers this experiment, and when it was sent and
+ * accepted. It is deliberately NOT a general proposal-reasoning surface.
+ */
+export type AskCgtProposal = {
+  id: string
+  code: string | null
+  title: string | null
+  status: string | null
+  kind: string | null
+  sent_at: string | null
+  accepted_at: string | null
+  declined_at: string | null
+  created_at: string | null
+}
+
+/**
+ * A work item from the inventory, with a count of its recorded sources.
+ *
+ * `evidenceCount` is carried here rather than re-derived at render time so the
+ * model can see which inventory entries are unsourced assertions.
+ */
+export type AskCgtWorkItem = WorkItem & {
+  ownerName: string | null
+  requestedByName: string | null
+  validatedByName: string | null
+  evidenceCount: number
+  contradictingEvidenceCount: number
+}
+
+/** A durable decision, with the code of the decision it replaced (if any). */
+export type AskCgtDecision = Decision & {
+  decidedByName: string | null
+  supersedesCode: string | null
+}
+
+/**
+ * A correction or dispute a human made to the inventory.
+ *
+ * These are the highest-value evidence in the whole set: they record where
+ * CGT's interpretation was wrong and who said so.
+ */
+export type AskCgtWorkCorrection = {
+  id: string
+  workItemCode: string | null
+  workItemTitle: string | null
+  eventType: string
+  actorPersonId: string | null
+  actorName: string | null
+  previousValue: string | null
+  note: string | null
+  occurredAt: string
 }
 
 export type AskCgtPerson = {
@@ -107,6 +173,28 @@ export type AskCgtContext = {
   markers: AskCgtMarker[]
   candidates: AskCgtCandidate[]
   experiments: AskCgtExperiment[]
+  /**
+   * The experiment Paul is actually looking at, when AskCGT was invoked from
+   * an experiment page. Rendered in full, and always also present in
+   * `experiments`. Null for the project-level entry point.
+   */
+  activeExperiment: AskCgtExperiment | null
+  /** Proposals connected to activeExperiment. Empty when there is no active experiment. */
+  activeExperimentProposals: AskCgtProposal[]
+  /** The work inventory for this project. */
+  workItems: AskCgtWorkItem[]
+  /** Durable decisions for this project. */
+  decisions: AskCgtDecision[]
+  /** Human corrections and disputes, most recent first. */
+  workCorrections: AskCgtWorkCorrection[]
+  /**
+   * Derived measures and EXP-003 criteria for the ACTIVE experiment's
+   * inventory, or null when there is no active experiment. Computed from the
+   * same pure functions the admin UI uses, so the model and Paul see
+   * identical numbers.
+   */
+  workMeasures: WorkMeasures | null
+  workCriteria: CriterionResult[]
 }
 
 /** The IDs the model is allowed to cite. Built from the retrieved context. */
@@ -117,6 +205,9 @@ export type AskCgtAllowedIds = {
   markers: Set<string>
   candidates: Set<string>
   experiments: Set<string>
+  proposals: Set<string>
+  workItems: Set<string>
+  decisions: Set<string>
 }
 
 export type RetrieveResult = {
@@ -140,9 +231,261 @@ function resolveUtteranceCap(): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 500
 }
 
+type ExperimentRow = Record<string, unknown>
+
+/** Normalizes an `experiments` row into AskCgtExperiment. */
+function toExperiment(row: ExperimentRow): AskCgtExperiment {
+  const str = (key: string): string | null => {
+    const value = row[key]
+    return typeof value === 'string' && value.trim() ? value : null
+  }
+  const design = row.design
+  return {
+    id: String(row.id),
+    code: String(row.code ?? ''),
+    slug: String(row.slug ?? ''),
+    title: String(row.title ?? ''),
+    status: String(row.status ?? ''),
+    primary_question: str('primary_question'),
+    problem: str('problem'),
+    hypothesis: str('hypothesis'),
+    rationale: str('rationale'),
+    method: str('method'),
+    success_criteria: str('success_criteria'),
+    failure_criteria: str('failure_criteria'),
+    stop_conditions: str('stop_conditions'),
+    scope: str('scope'),
+    decision_rule: str('decision_rule'),
+    conclusion: str('conclusion'),
+    recommendation: str('recommendation'),
+    resulting_decision: str('resulting_decision'),
+    confidence: str('confidence'),
+    design: design && typeof design === 'object' && !Array.isArray(design) ? (design as Record<string, unknown>) : {},
+    created_at: str('created_at'),
+    proposed_at: str('proposed_at'),
+    approved_at: str('approved_at'),
+    activated_at: str('activated_at'),
+    completed_at: str('completed_at'),
+  }
+}
+
+/**
+ * Proposals connected to one experiment via proposal_experiments.
+ *
+ * Scoped to a single experiment ID that the caller has already verified
+ * belongs to the project. A failure here is non-fatal: approval provenance is
+ * valuable but AskCGT must still be able to answer without it, and it says so
+ * in the prompt rather than implying no proposal exists.
+ */
+async function retrieveExperimentProposals(supabase: Supabase, experimentId: string): Promise<AskCgtProposal[]> {
+  const { data, error } = await supabase
+    .from('proposal_experiments')
+    .select('proposals(id, code, title, status, kind, sent_at, accepted_at, declined_at, created_at)')
+    .eq('experiment_id', experimentId)
+  if (error || !data) return []
+
+  const rows = data as Array<{ proposals: AskCgtProposal | AskCgtProposal[] | null }>
+  const seen = new Set<string>()
+  const proposals: AskCgtProposal[] = []
+  for (const row of rows) {
+    const candidate = Array.isArray(row.proposals) ? row.proposals[0] : row.proposals
+    if (!candidate?.id || seen.has(candidate.id)) continue
+    seen.add(candidate.id)
+    proposals.push({
+      id: candidate.id,
+      code: candidate.code ?? null,
+      title: candidate.title ?? null,
+      status: candidate.status ?? null,
+      kind: candidate.kind ?? null,
+      sent_at: candidate.sent_at ?? null,
+      accepted_at: candidate.accepted_at ?? null,
+      declined_at: candidate.declined_at ?? null,
+      created_at: candidate.created_at ?? null,
+    })
+  }
+  return proposals
+}
+
+/**
+ * Retrieves the work inventory, decisions, and their provenance for a project.
+ *
+ * All three queries are scoped by project_id. Evidence links are then fetched
+ * for exactly the retrieved subjects, so a link belonging to another project's
+ * item can never enter the set.
+ *
+ * A failure here is non-fatal: AskCGT must still answer without the inventory,
+ * and the prompt states that the inventory is empty rather than implying no
+ * work exists.
+ */
+async function retrieveWorkArtifacts(
+  supabase: Supabase,
+  projectId: string,
+  personNameById: Map<string, string>
+): Promise<{
+  workItems: AskCgtWorkItem[]
+  decisions: AskCgtDecision[]
+  corrections: AskCgtWorkCorrection[]
+  rawItems: WorkItem[]
+  rawEvents: WorkItemEvent[]
+  rawDecisions: Decision[]
+  itemIdsWithEvidence: Set<string>
+}> {
+  const empty = {
+    workItems: [],
+    decisions: [],
+    corrections: [],
+    rawItems: [],
+    rawEvents: [],
+    rawDecisions: [],
+    itemIdsWithEvidence: new Set<string>(),
+  }
+
+  const [itemsResult, decisionsResult, eventsResult] = await Promise.all([
+    supabase.from('work_items').select('*').eq('project_id', projectId).order('item_number', { ascending: true }),
+    supabase.from('decisions').select('*').eq('project_id', projectId).order('decision_number', { ascending: true }),
+    supabase
+      .from('work_item_events')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('occurred_at', { ascending: false }),
+  ])
+
+  if (itemsResult.error && decisionsResult.error) return empty
+
+  const rawItems = (itemsResult.data || []) as WorkItem[]
+  const rawDecisions = (decisionsResult.data || []) as Decision[]
+  const rawEvents = (eventsResult.data || []) as WorkItemEvent[]
+
+  // Resolve names for every person these artifacts actually reference.
+  //
+  // The caller's map is built from project_persons, but a work item may name
+  // a person who was never added to that junction (Christie is exactly this
+  // case on Alpine). Relying on the junction alone left the name null, which
+  // the renderer then printed as "NOBODY" — turning a lookup failure into a
+  // false claim that the work is unowned. Any referenced id is resolved here.
+  const referenced = new Set<string>()
+  for (const item of rawItems) {
+    for (const id of [item.owner_person_id, item.requested_by_person_id, item.validated_by_person_id]) {
+      if (id && !personNameById.has(id)) referenced.add(id)
+    }
+  }
+  for (const decision of rawDecisions) {
+    if (decision.decided_by_person_id && !personNameById.has(decision.decided_by_person_id)) {
+      referenced.add(decision.decided_by_person_id)
+    }
+  }
+  for (const event of rawEvents) {
+    if (event.actor_person_id && !personNameById.has(event.actor_person_id)) {
+      referenced.add(event.actor_person_id)
+    }
+  }
+  if (referenced.size > 0) {
+    const { data: extraPeople } = await supabase
+      .from('persons')
+      .select('id, display_name')
+      .in('id', Array.from(referenced))
+    for (const person of (extraPeople || []) as Array<{ id: string; display_name: string }>) {
+      personNameById.set(person.id, person.display_name)
+    }
+  }
+
+  // Provenance is fetched for the retrieved subjects only.
+  const itemIds = rawItems.map((i) => i.id)
+  const decisionIds = rawDecisions.map((d) => d.id)
+  const [itemLinksResult, decisionLinksResult] = await Promise.all([
+    itemIds.length
+      ? supabase.from('evidence_links').select('*').in('subject_work_item_id', itemIds)
+      : Promise.resolve({ data: [] as EvidenceLink[], error: null }),
+    decisionIds.length
+      ? supabase.from('evidence_links').select('*').in('subject_decision_id', decisionIds)
+      : Promise.resolve({ data: [] as EvidenceLink[], error: null }),
+  ])
+
+  const itemLinks = (itemLinksResult.data || []) as EvidenceLink[]
+  const decisionLinks = (decisionLinksResult.data || []) as EvidenceLink[]
+
+  const linkCount = new Map<string, number>()
+  const contradictingCount = new Map<string, number>()
+  for (const link of [...itemLinks, ...decisionLinks]) {
+    const key = link.subject_work_item_id ?? link.subject_decision_id
+    if (!key) continue
+    linkCount.set(key, (linkCount.get(key) ?? 0) + 1)
+    if (link.role === 'contradicting') {
+      contradictingCount.set(key, (contradictingCount.get(key) ?? 0) + 1)
+    }
+  }
+
+  const name = (id: string | null) => (id ? personNameById.get(id) ?? null : null)
+  const decisionCodeById = new Map(rawDecisions.map((d) => [d.id, d.code]))
+  const itemById = new Map(rawItems.map((i) => [i.id, i]))
+
+  const workItems: AskCgtWorkItem[] = rawItems.map((item) => ({
+    ...item,
+    ownerName: name(item.owner_person_id),
+    requestedByName: name(item.requested_by_person_id),
+    validatedByName: name(item.validated_by_person_id),
+    evidenceCount: linkCount.get(item.id) ?? 0,
+    contradictingEvidenceCount: contradictingCount.get(item.id) ?? 0,
+  }))
+
+  const decisions: AskCgtDecision[] = rawDecisions.map((decision) => ({
+    ...decision,
+    decidedByName: name(decision.decided_by_person_id),
+    supersedesCode: decision.supersedes_decision_id
+      ? decisionCodeById.get(decision.supersedes_decision_id) ?? null
+      : null,
+  }))
+
+  // Only human review outcomes are surfaced as corrections. Mechanical
+  // state/owner changes are noise for consulting reasoning.
+  const correctionTypes = new Set(['corrected', 'disputed', 'confirmed', 'removed'])
+  const corrections: AskCgtWorkCorrection[] = rawEvents
+    .filter((event) => correctionTypes.has(event.event_type))
+    .map((event) => {
+      const item = event.work_item_id ? itemById.get(event.work_item_id) : undefined
+      return {
+        id: event.id,
+        workItemCode: item?.code ?? null,
+        workItemTitle: item?.title ?? null,
+        eventType: event.event_type,
+        actorPersonId: event.actor_person_id,
+        actorName: name(event.actor_person_id),
+        previousValue: event.previous_value,
+        note: event.note,
+        occurredAt: event.occurred_at,
+      }
+    })
+
+  return {
+    workItems,
+    decisions,
+    corrections,
+    rawItems,
+    rawEvents,
+    rawDecisions,
+    itemIdsWithEvidence: new Set(
+      itemLinks.map((l) => l.subject_work_item_id).filter((id): id is string => Boolean(id))
+    ),
+  }
+}
+
+export type RetrieveOptions = {
+  /**
+   * The experiment Paul is viewing. Verified to belong to `projectId` before
+   * any of its content is used; a mismatch throws 'Experiment not found'
+   * rather than silently degrading to project-level context.
+   */
+  experimentId?: string | null
+}
+
+/** Columns of `experiments` AskCGT reasons over. Kept in one place so retrieval and rendering cannot drift apart. */
+const EXPERIMENT_COLUMNS =
+  'id, code, slug, title, status, primary_question, problem, hypothesis, rationale, method, success_criteria, failure_criteria, stop_conditions, scope, decision_rule, conclusion, recommendation, resulting_decision, confidence, design, created_at, proposed_at, approved_at, activated_at, completed_at'
+
 export async function retrieveProjectEvidence(
   supabase: Supabase,
-  projectId: string
+  projectId: string,
+  options: RetrieveOptions = {}
 ): Promise<RetrieveResult> {
   // Project itself. If the caller cannot read this project, the query returns
   // nothing and AskCGT stops here — authorization happens before any evidence
@@ -160,7 +503,7 @@ export async function retrieveProjectEvidence(
   }
   const project: AskCgtProject = projectData as AskCgtProject
 
-  const [peopleResult, recordingsResult, observationsResult, markersResult, candidatesResult, experimentsResult] =
+  const [peopleResult, recordingsResult, candidatesResult, experimentsResult] =
     await Promise.all([
       supabase
         .from('project_persons')
@@ -172,18 +515,12 @@ export async function retrieveProjectEvidence(
         .eq('project_id', projectId)
         .order('started_at', { ascending: false }),
       supabase
-        .from('transcript_observations')
-        .select('id, transcript_id, statement, confidence, notes, created_at'),
-      supabase
-        .from('engagement_session_notes')
-        .select('id, recording_id, note_type, note_text, timestamp_seconds'),
-      supabase
         .from('project_intelligence_candidates')
-        .select('id, transcript_id, type, content, reasoning_summary, confidence, status, provider, model, project_intelligence_candidate_evidence(transcript_id, utterance_ids, role)')
+        .select('id, transcript_id, type, content, reasoning_summary, confidence, status, provider, model, created_at, project_intelligence_candidate_evidence(transcript_id, utterance_ids, role)')
         .eq('project_id', projectId),
       supabase
         .from('experiments')
-        .select('id, code, slug, title, status, primary_question, problem, hypothesis, rationale, method, success_criteria, failure_criteria, stop_conditions, scope, decision_rule, conclusion, recommendation, resulting_decision, confidence, design')
+        .select(EXPERIMENT_COLUMNS)
         .eq('project_id', projectId),
     ])
 
@@ -192,31 +529,33 @@ export async function retrieveProjectEvidence(
   const visibleStatuses = new Set(['proposed', 'approved', 'active', 'completed'])
   const experiments = (experimentsResult.data || [])
     .filter((e) => visibleStatuses.has(e.status))
-    .map((e) => ({
-      id: e.id,
-      code: e.code,
-      slug: e.slug,
-      title: e.title,
-      status: e.status,
-      primary_question: e.primary_question,
-      problem: e.problem,
-      hypothesis: e.hypothesis,
-      rationale: e.rationale,
-      method: e.method,
-      success_criteria: e.success_criteria,
-      failure_criteria: e.failure_criteria,
-      stop_conditions: e.stop_conditions,
-      scope: e.scope,
-      decision_rule: e.decision_rule,
-      conclusion: e.conclusion,
-      recommendation: e.recommendation,
-      resulting_decision: e.resulting_decision,
-      confidence: e.confidence,
-      design: e.design,
-    }))
+    .map(toExperiment)
 
-  // Observations are project-scoped via their transcript -> recording -> project.
-  // Only keep observations that belong to this project's recordings.
+  // The active experiment is resolved with an explicit project_id predicate, so
+  // an experimentId belonging to another project can never be used. It is
+  // looked up separately from the list above because the list drops draft
+  // experiments, and Paul may legitimately be viewing a draft he is editing.
+  let activeExperiment: AskCgtExperiment | null = null
+  let activeExperimentProposals: AskCgtProposal[] = []
+  if (options.experimentId) {
+    const { data: activeData, error: activeError } = await supabase
+      .from('experiments')
+      .select(EXPERIMENT_COLUMNS)
+      .eq('id', options.experimentId)
+      .eq('project_id', projectId)
+      .maybeSingle()
+    if (activeError) {
+      throw new Error(`Failed to load experiment: ${activeError.message}`)
+    }
+    if (!activeData) {
+      // Either it does not exist, RLS hid it, or it belongs to another
+      // project. All three are the same answer to the caller.
+      throw new Error('Experiment not found')
+    }
+    activeExperiment = toExperiment(activeData)
+    activeExperimentProposals = await retrieveExperimentProposals(supabase, activeExperiment.id)
+  }
+
   const recordings = (recordingsResult.data || []) as Array<{
     id: string
     project_id: string
@@ -225,10 +564,20 @@ export async function retrieveProjectEvidence(
   const recordingIds = recordings.map((r) => r.id)
   const recordingTitleById = new Map(recordings.map((r) => [r.id, r.title]))
 
-  const transcriptsResult = await supabase
-    .from('engagement_transcripts')
-    .select('id, recording_id, status, completed_at, utterances')
-    .in('recording_id', recordingIds)
+  // Markers and transcripts are scoped to THIS project's recordings in the
+  // query. Previously these tables were fetched unscoped (every row the
+  // admin's RLS allowed, across all clients) and narrowed with an in-memory
+  // filter; isolation now rests on the query itself.
+  const [transcriptsResult, markersResult] = await Promise.all([
+    supabase
+      .from('engagement_transcripts')
+      .select('id, recording_id, status, completed_at, utterances')
+      .in('recording_id', recordingIds),
+    supabase
+      .from('engagement_session_notes')
+      .select('id, recording_id, note_type, note_text, timestamp_seconds, created_at')
+      .in('recording_id', recordingIds),
+  ])
 
   const transcripts = (transcriptsResult.data || []) as Array<{
     id: string
@@ -240,7 +589,13 @@ export async function retrieveProjectEvidence(
   const transcriptIds = transcripts.map((t) => t.id)
   const recordingByTranscript = new Map(transcripts.map((t) => [t.id, t.recording_id]))
 
-  // Filter observations/candidates/markers to the project's transcripts/recordings.
+  // Observations reach the project via transcript -> recording -> project, so
+  // they can only be scoped once transcriptIds are known.
+  const observationsResult = await supabase
+    .from('transcript_observations')
+    .select('id, transcript_id, statement, confidence, notes, created_at')
+    .in('transcript_id', transcriptIds)
+
   type ObservationRow = {
     id: string
     transcript_id: string
@@ -267,6 +622,7 @@ export async function retrieveProjectEvidence(
     note_type: string
     note_text: string | null
     timestamp_seconds: number
+    created_at: string | null
   }
   const markers: AskCgtMarker[] = ((markersResult.data || []) as MarkerRow[])
     .filter((m) => recordingIds.includes(m.recording_id))
@@ -277,6 +633,7 @@ export async function retrieveProjectEvidence(
       noteType: m.note_type,
       noteText: m.note_text,
       timestampSeconds: m.timestamp_seconds,
+      created_at: m.created_at ?? null,
     }))
 
   type CandidateEvidenceRow = { transcript_id: string; utterance_ids: string[]; role: string }
@@ -290,6 +647,7 @@ export async function retrieveProjectEvidence(
     status: string
     provider: string
     model: string
+    created_at: string | null
     project_intelligence_candidate_evidence: CandidateEvidenceRow[]
   }
   const candidates: AskCgtCandidate[] = ((candidatesResult.data || []) as CandidateRow[])
@@ -305,6 +663,7 @@ export async function retrieveProjectEvidence(
       status: c.status,
       provider: c.provider,
       model: c.model,
+      created_at: c.created_at ?? null,
       evidence: (c.project_intelligence_candidate_evidence || []).map((evidence) => ({
         transcript_id: evidence.transcript_id,
         utterance_ids: evidence.utterance_ids,
@@ -372,6 +731,39 @@ export async function retrieveProjectEvidence(
     }
   })
 
+  // The active experiment must be citable even when its status excludes it
+  // from the visible list (e.g. a draft Paul is editing), so it is merged in
+  // rather than assumed present.
+  const experimentsById = new Map(experiments.map((e) => [e.id, e]))
+  if (activeExperiment) experimentsById.set(activeExperiment.id, activeExperiment)
+  const allExperiments = Array.from(experimentsById.values())
+
+  // Work artifacts. Person names are resolved here so the prompt can say
+  // "Christie" rather than a bare UUID.
+  const personNameById = new Map(people.map((person) => [person.id, person.displayName]))
+  const work = await retrieveWorkArtifacts(supabase, projectId, personNameById)
+
+  // Measures are computed for the ACTIVE experiment's inventory only. A
+  // project-wide number would misreport EXP-003's thresholds, which are about
+  // one experiment's inventory.
+  let workMeasures: WorkMeasures | null = null
+  let workCriteria: CriterionResult[] = []
+  if (activeExperiment) {
+    const scopedItems = work.rawItems.filter((item) => item.experiment_id === activeExperiment.id)
+    const scopedItemIds = new Set(scopedItems.map((item) => item.id))
+    workMeasures = computeWorkMeasures({
+      workItems: scopedItems,
+      events: work.rawEvents.filter(
+        (event) =>
+          event.experiment_id === activeExperiment.id ||
+          (event.work_item_id !== null && scopedItemIds.has(event.work_item_id))
+      ),
+      decisions: work.rawDecisions.filter((decision) => decision.experiment_id === activeExperiment.id),
+      workItemIdsWithEvidence: work.itemIdsWithEvidence,
+    })
+    workCriteria = evaluateExp003Criteria(workMeasures)
+  }
+
   const context: AskCgtContext = {
     project,
     people,
@@ -380,7 +772,14 @@ export async function retrieveProjectEvidence(
     observations,
     markers,
     candidates,
-    experiments,
+    experiments: allExperiments,
+    activeExperiment,
+    activeExperimentProposals,
+    workItems: work.workItems,
+    decisions: work.decisions,
+    workCorrections: work.corrections,
+    workMeasures,
+    workCriteria,
   }
 
   const allowed: AskCgtAllowedIds = {
@@ -391,7 +790,10 @@ export async function retrieveProjectEvidence(
     observations: new Set(observations.map((o) => o.id)),
     markers: new Set(markers.map((m) => m.id)),
     candidates: new Set(candidates.map((c) => c.id)),
-    experiments: new Set(context.experiments.map((e) => e.id)),
+    experiments: new Set(allExperiments.map((e) => e.id)),
+    proposals: new Set(activeExperimentProposals.map((p) => p.id)),
+    workItems: new Set(work.workItems.map((item) => item.id)),
+    decisions: new Set(work.decisions.map((decision) => decision.id)),
   }
 
   const evidenceItemsRetrieved =
@@ -399,7 +801,11 @@ export async function retrieveProjectEvidence(
     observations.length +
     markers.length +
     candidates.length +
-    context.experiments.length +
+    allExperiments.length +
+    activeExperimentProposals.length +
+    work.workItems.length +
+    work.decisions.length +
+    work.corrections.length +
     contextTranscripts.reduce((sum, t) => sum + t.utterances.length, 0)
 
   return { context, allowed, evidenceItemsRetrieved }

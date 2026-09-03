@@ -25,6 +25,11 @@ type AskCgtResponse = {
     durationMs: number
     evidenceItemsRetrieved: number
   }
+  citations?: {
+    submitted: number
+    accepted: number
+    rejected: number
+  }
 }
 
 type AskState = 'idle' | 'asking' | 'done' | 'error'
@@ -35,7 +40,21 @@ const kindStyles: Record<Conclusion['kind'], { badge: string; label: string }> =
   unknown: { badge: 'bg-amber-100 text-amber-800', label: 'Unknown' },
 }
 
-export function AskCgt({ projectId, projectName }: { projectId: string; projectName: string }) {
+export function AskCgt({
+  projectId,
+  projectName,
+  experimentId,
+  experimentLabel,
+  placeholder,
+}: {
+  projectId: string
+  projectName: string
+  /** When set, AskCGT treats this experiment as the subject of the question. */
+  experimentId?: string
+  /** Display label for the active experiment, e.g. "EXP-003 Make the work visible". */
+  experimentLabel?: string
+  placeholder?: string
+}) {
   const [question, setQuestion] = useState('')
   const [state, setState] = useState<AskState>('idle')
   const [result, setResult] = useState<AskCgtResponse | null>(null)
@@ -51,7 +70,9 @@ export function AskCgt({ projectId, projectName }: { projectId: string; projectN
       const response = await fetch('/api/admin/askcgt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, question: trimmed }),
+        // experimentId is sent explicitly rather than left for the model to
+        // infer from the question text or the experiment's title.
+        body: JSON.stringify(experimentId ? { projectId, experimentId, question: trimmed } : { projectId, question: trimmed }),
       })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error || 'AskCGT failed')
@@ -67,10 +88,19 @@ export function AskCgt({ projectId, projectName }: { projectId: string; projectN
     <section className="bg-white border border-[#290D47]/15 rounded-2xl p-6 shadow-sm">
       <div className="mb-4">
         <h2 className="text-xl font-semibold text-[#1A0F2E]">Ask CGT</h2>
-        <p className="text-[#6B6785] text-sm">
-          Ask a question about {projectName}. Answers reason over the evidence CGT already has
-          for this project and cite the underlying sources.
-        </p>
+        {experimentId ? (
+          <p className="text-[#6B6785] text-sm">
+            Reasoning about{' '}
+            <span className="font-medium text-[#1A0F2E]">{experimentLabel || 'this experiment'}</span>{' '}
+            — its full definition, scope and boundaries, approval provenance, and {projectName}&apos;s
+            evidence. AskCGT will challenge a framing that conflicts with the experiment.
+          </p>
+        ) : (
+          <p className="text-[#6B6785] text-sm">
+            Ask a question about {projectName}. Answers reason over the evidence CGT already has
+            for this project and cite the underlying sources.
+          </p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -85,7 +115,12 @@ export function AskCgt({ projectId, projectName }: { projectId: string; projectN
               void ask()
             }
           }}
-          placeholder="e.g. What did we learn from today's conversation that confirms, contradicts, or changes our understanding of Alpine? (Ctrl/Cmd+Enter to ask)"
+          placeholder={
+            placeholder ||
+            (experimentId
+              ? 'e.g. Based on this experiment and its evidence, what should I do next? (Ctrl/Cmd+Enter to ask)'
+              : "e.g. What did we learn from today's conversation that confirms, contradicts, or changes our understanding of Alpine? (Ctrl/Cmd+Enter to ask)")
+          }
           className="w-full px-4 py-3 rounded-lg bg-white border border-[#E8E4EF] text-[#1A0F2E] placeholder:text-[#6B6785] resize-none focus:outline-none focus:border-[#290D47] disabled:opacity-50"
           rows={3}
         />
@@ -107,6 +142,17 @@ export function AskCgt({ projectId, projectName }: { projectId: string; projectN
 
       {state === 'done' && result && (
         <div className="mt-4 space-y-4">
+          {result.citations && result.citations.rejected > 0 && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              <span className="font-semibold">
+                {result.citations.rejected} of {result.citations.submitted} citations were rejected.
+              </span>{' '}
+              AskCGT referenced evidence that is not in the retrieved set, so any conclusion below
+              with no evidence chips is less grounded than its wording suggests. Treat those
+              conclusions as unsupported.
+            </div>
+          )}
+
           <div className="rounded-lg border border-[#E8E4EF] bg-[#F8F7F5] p-4">
             <p className="text-[#1A0F2E] whitespace-pre-wrap text-sm leading-relaxed">{result.answer.answer}</p>
           </div>
@@ -127,10 +173,16 @@ export function AskCgt({ projectId, projectName }: { projectId: string; projectN
                       {conclusion.reasoning && (
                         <p className="mt-1 text-xs text-[#6B6785]">{conclusion.reasoning}</p>
                       )}
-                      {conclusion.evidence.length > 0 && (
+                      {conclusion.evidence.length > 0 ? (
                         <div className="mt-2 flex flex-wrap gap-1">
                           {conclusion.evidence.map((ref, refIndex) => (
-                            <span key={refIndex} className="px-2 py-0.5 rounded bg-[#F8F7F5] border border-[#E8E4EF] text-xs text-[#6B6785] font-mono">
+                            <span
+                              key={refIndex}
+                              // Chips are abbreviated for readability only; the
+                              // full canonical id is preserved in the tooltip.
+                              title={`${ref.type} ${ref.id}${ref.utteranceIds?.length ? `\nutterances: ${ref.utteranceIds.join(', ')}` : ''}`}
+                              className="px-2 py-0.5 rounded bg-[#F8F7F5] border border-[#E8E4EF] text-xs text-[#6B6785] font-mono"
+                            >
                               {ref.type}:{ref.id.slice(0, 8)}
                               {ref.utteranceIds && ref.utteranceIds.length > 0
                                 ? ` · ${ref.utteranceIds.slice(0, 4).join(', ')}${ref.utteranceIds.length > 4 ? ` +${ref.utteranceIds.length - 4}` : ''}`
@@ -138,6 +190,12 @@ export function AskCgt({ projectId, projectName }: { projectId: string; projectN
                             </span>
                           ))}
                         </div>
+                      ) : (
+                        conclusion.kind !== 'unknown' && (
+                          <p className="mt-2 text-xs font-medium text-amber-700">
+                            No evidence cited — this conclusion is not grounded in retrieved evidence.
+                          </p>
+                        )
                       )}
                     </div>
                   )
