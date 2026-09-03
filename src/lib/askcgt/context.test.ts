@@ -62,6 +62,30 @@ function baseContext(): AskCgtContext {
         evidence: [{ transcript_id: 't-alpine-1', utterance_ids: ['u1'], role: 'supporting' }],
       },
     ],
+    experiments: [
+      {
+        id: 'exp-1',
+        code: 'EXP-001',
+        slug: 'exp-001',
+        title: 'User onboarding experiment',
+        status: 'proposed',
+        primary_question: 'How can we improve user onboarding?',
+        problem: null,
+        hypothesis: 'A guided tour will reduce time to value.',
+        rationale: null,
+        method: 'A/B test with and without guided tour',
+        success_criteria: 'Reduced time to first value action',
+        failure_criteria: 'No improvement in time to value',
+        stop_conditions: null,
+        scope: null,
+        decision_rule: 'If success criteria met, proceed with full rollout',
+        conclusion: null,
+        recommendation: null,
+        resulting_decision: null,
+        confidence: null,
+        design: {},
+      },
+    ],
   }
 }
 

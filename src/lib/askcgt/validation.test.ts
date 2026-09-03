@@ -11,6 +11,7 @@ const allowed: AskCgtAllowedIds = {
   observations: new Set(['obs-1']),
   markers: new Set(['marker-1']),
   candidates: new Set(['cand-1']),
+  experiments: new Set([]),
 }
 
 type RawEvidence = { type: string; id: string; utteranceIds?: string[] }

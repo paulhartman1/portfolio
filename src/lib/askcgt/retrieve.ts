@@ -53,6 +53,29 @@ export type AskCgtCandidate = {
   provider: string
   model: string
   evidence: Array<{ transcript_id: string; utterance_ids: string[]; role: string }>
+
+}
+export type AskCgtExperiment = {
+  id: string
+  code: string
+  slug: string
+  title: string
+  status: string
+  primary_question: string | null
+  problem: string | null
+  hypothesis: string | null
+  rationale: string | null
+  method: string | null
+  success_criteria: string | null
+  failure_criteria: string | null
+  stop_conditions: string | null
+  scope: string | null
+  decision_rule: string | null
+  conclusion: string | null
+  recommendation: string | null
+  resulting_decision: string | null
+  confidence: string | null
+  design: Record<string, unknown>
 }
 
 export type AskCgtPerson = {
@@ -83,6 +106,7 @@ export type AskCgtContext = {
   observations: AskCgtObservation[]
   markers: AskCgtMarker[]
   candidates: AskCgtCandidate[]
+  experiments: AskCgtExperiment[]
 }
 
 /** The IDs the model is allowed to cite. Built from the retrieved context. */
@@ -92,6 +116,7 @@ export type AskCgtAllowedIds = {
   observations: Set<string>
   markers: Set<string>
   candidates: Set<string>
+  experiments: Set<string>
 }
 
 export type RetrieveResult = {
@@ -135,7 +160,7 @@ export async function retrieveProjectEvidence(
   }
   const project: AskCgtProject = projectData as AskCgtProject
 
-  const [peopleResult, recordingsResult, observationsResult, markersResult, candidatesResult] =
+  const [peopleResult, recordingsResult, observationsResult, markersResult, candidatesResult, experimentsResult] =
     await Promise.all([
       supabase
         .from('project_persons')
@@ -156,7 +181,39 @@ export async function retrieveProjectEvidence(
         .from('project_intelligence_candidates')
         .select('id, transcript_id, type, content, reasoning_summary, confidence, status, provider, model, project_intelligence_candidate_evidence(transcript_id, utterance_ids, role)')
         .eq('project_id', projectId),
+      supabase
+        .from('experiments')
+        .select('id, code, slug, title, status, primary_question, problem, hypothesis, rationale, method, success_criteria, failure_criteria, stop_conditions, scope, decision_rule, conclusion, recommendation, resulting_decision, confidence, design')
+        .eq('project_id', projectId),
     ])
+
+  // Filter experiments to only visible statuses (proposed, approved, active, completed)
+  // Mirrors the RLS policy: clients see experiments once they leave draft status.
+  const visibleStatuses = new Set(['proposed', 'approved', 'active', 'completed'])
+  const experiments = (experimentsResult.data || [])
+    .filter((e) => visibleStatuses.has(e.status))
+    .map((e) => ({
+      id: e.id,
+      code: e.code,
+      slug: e.slug,
+      title: e.title,
+      status: e.status,
+      primary_question: e.primary_question,
+      problem: e.problem,
+      hypothesis: e.hypothesis,
+      rationale: e.rationale,
+      method: e.method,
+      success_criteria: e.success_criteria,
+      failure_criteria: e.failure_criteria,
+      stop_conditions: e.stop_conditions,
+      scope: e.scope,
+      decision_rule: e.decision_rule,
+      conclusion: e.conclusion,
+      recommendation: e.recommendation,
+      resulting_decision: e.resulting_decision,
+      confidence: e.confidence,
+      design: e.design,
+    }))
 
   // Observations are project-scoped via their transcript -> recording -> project.
   // Only keep observations that belong to this project's recordings.
@@ -323,6 +380,7 @@ export async function retrieveProjectEvidence(
     observations,
     markers,
     candidates,
+    experiments,
   }
 
   const allowed: AskCgtAllowedIds = {
@@ -333,6 +391,7 @@ export async function retrieveProjectEvidence(
     observations: new Set(observations.map((o) => o.id)),
     markers: new Set(markers.map((m) => m.id)),
     candidates: new Set(candidates.map((c) => c.id)),
+    experiments: new Set(context.experiments.map((e) => e.id)),
   }
 
   const evidenceItemsRetrieved =
@@ -340,6 +399,7 @@ export async function retrieveProjectEvidence(
     observations.length +
     markers.length +
     candidates.length +
+    context.experiments.length +
     contextTranscripts.reduce((sum, t) => sum + t.utterances.length, 0)
 
   return { context, allowed, evidenceItemsRetrieved }

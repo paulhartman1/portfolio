@@ -148,6 +148,20 @@ export function buildUserPrompt(input: AskCgtPromptInput): string {
     parts.push('')
   }
 
+  if (input.experiments.length > 0) {
+    parts.push('## Experiments')
+    for (const experiment of input.experiments) {
+      parts.push(`E${experiment.id.slice(0, 8)}: ${experiment.title} (${experiment.code})`)
+      if (experiment.primary_question) parts.push(`   Question: ${experiment.primary_question}`)
+      if (experiment.hypothesis) parts.push(`   Hypothesis: ${experiment.hypothesis}`)
+      if (experiment.decision_rule) parts.push(`   Decision rule: ${experiment.decision_rule}`)
+      if (experiment.conclusion) parts.push(`   Conclusion: ${experiment.conclusion}`)
+      if (experiment.recommendation) parts.push(`   Recommendation: ${experiment.recommendation}`)
+      if (experiment.resulting_decision) parts.push(`   Resulting decision: ${experiment.resulting_decision}`)
+      parts.push('')
+    }
+  }
+
   parts.push('## Question')
   parts.push(input.question)
   parts.push('')
