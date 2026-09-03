@@ -29,6 +29,10 @@ export const EVIDENCE_TYPES = [
   'proposal',
   'work_item',
   'decision',
+  // A prior AskCGT conclusion that a human reviewed and accepted. Citable
+  // because it carries more authority than an unreviewed candidate — but it
+  // remains a reviewed interpretation, never a source fact.
+  'finding',
 ] as const
 export type EvidenceType = (typeof EVIDENCE_TYPES)[number]
 

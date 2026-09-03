@@ -191,6 +191,48 @@ function renderWorkItems(input: AskCgtPromptInput): string {
   return lines.join('\n')
 }
 
+/**
+ * Renders findings a human reviewed and accepted.
+ *
+ * These sit between evidence and model output in authority: a person vouched
+ * for the interpretation, which an unreviewed candidate never had. But they
+ * are still interpretations, so the section states that explicitly and shows
+ * the original wording whenever the reviewer edited it — otherwise a later
+ * reader cannot tell the model's claim from the human's correction of it.
+ */
+function renderReviewedFindings(input: AskCgtPromptInput): string {
+  if (input.reviewedFindings.length === 0) return ''
+  const lines: string[] = []
+  lines.push('## Reviewed findings (a human accepted these interpretations)')
+  lines.push(
+    'These are prior AskCGT conclusions that Paul reviewed and deliberately accepted. A reviewed finding is a HUMAN-VOUCHED INTERPRETATION, not a source fact: it carries more authority than an unreviewed candidate, and less than the primary evidence it cites. It does NOT override contradictory primary evidence — if you find evidence that conflicts with a reviewed finding, say so and cite both.'
+  )
+  lines.push('Cite these as type "finding" using the full id shown.')
+  lines.push('')
+  for (const finding of input.reviewedFindings.slice(0, MAX_DECISIONS_RENDERED)) {
+    lines.push(
+      `Finding ${finding.id}${finding.experimentCode ? ` [${finding.experimentCode}]` : ''} [${finding.epistemicType || 'unclassified'}] [${finding.wasEdited ? 'ACCEPTED WITH EDITS' : 'accepted unchanged'}]`
+    )
+    lines.push(`    accepted claim: ${finding.statement}`)
+    if (finding.wasEdited && finding.proposedStatement) {
+      lines.push(`    the model originally proposed: ${finding.proposedStatement}`)
+      lines.push('    (the reviewer changed the wording, so the accepted claim above is the human judgment)')
+    }
+    if (finding.interpretation) lines.push(`    rationale: ${finding.interpretation}`)
+    lines.push(
+      `    reviewed by ${finding.reviewerName || 'an unnamed reviewer'} on ${renderDate(finding.reviewedAt)}${finding.model ? `; originally proposed by ${finding.provider || 'unknown'}/${finding.model}` : ''}`
+    )
+    if (finding.citations.length > 0) {
+      lines.push(
+        `    grounded in: ${finding.citations.map((c) => `${c.type} ${c.id}${c.utteranceIds?.length ? ` (utterances ${c.utteranceIds.join(', ')})` : ''}`).join('; ')}`
+      )
+    } else {
+      lines.push('    grounded in: NO CITATIONS RECORDED')
+    }
+  }
+  return lines.join('\n')
+}
+
 /** Renders durable decisions, including what was rejected and what superseded what. */
 function renderDecisions(input: AskCgtPromptInput): string {
   if (input.decisions.length === 0) return ''
@@ -354,6 +396,7 @@ export function buildSystemPrompt(): string {
     '- A CLIENT-ACCEPTED PROPOSAL is a commercial commitment. It is authoritative about what was agreed and when.',
     '- A HUMAN-ACCEPTED OBSERVATION has been reviewed by a person. It is the strongest interpretive evidence.',
     '- A HUMAN CORRECTION OR DISPUTE of a CGT record is direct evidence that CGT was wrong. Weigh it above the record it corrects.',
+    '- A REVIEWED FINDING is a prior model conclusion that a human examined and accepted. It is a vouched-for INTERPRETATION, not a source fact. It outranks an unreviewed candidate and never outranks the primary evidence it cites; if primary evidence contradicts it, say so and cite both. Where the reviewer edited the wording, the accepted wording is the human judgment and the original is the model\'s.',
     '- A RECORDED DECISION is authoritative about what was settled and why — but only while its status is "active". A "superseded" or "reversed" decision describes past thinking, not current policy.',
     '- A WORK ITEM is CGT\'s record that some work exists. Its reliability depends on two things stated on every item: whether a human has validated it, and whether it has any recorded source. An unvalidated item with no source is an unverified assertion, not established fact.',
     '- A LIVE SESSION MARKER was recorded by a person during a real conversation. It is strong evidence that something was noticed at that moment.',
@@ -416,7 +459,7 @@ export function buildSystemPrompt(): string {
     '      "kind": "evidence" | "inference" | "unknown",',
     '      "confidence": 0.0 to 1.0,',
     '      "reasoning": "one sentence explaining how the evidence supports or fails to support this",',
-    '      "evidence": [ { "type": "transcript" | "observation" | "marker" | "candidate" | "experiment" | "proposal" | "work_item" | "decision", "id": "exact full id from the evidence", "utteranceIds": ["exact utterance ids"] } ]',
+    '      "evidence": [ { "type": "transcript" | "observation" | "marker" | "candidate" | "experiment" | "proposal" | "work_item" | "decision" | "finding", "id": "exact full id from the evidence", "utteranceIds": ["exact utterance ids"] } ]',
     '    }',
     '  ],',
     '  "unknowns": ["an important thing the evidence does not tell us"]',
@@ -424,7 +467,7 @@ export function buildSystemPrompt(): string {
     '',
     'Rules:',
     '- Every evidence reference MUST use the COMPLETE identifier exactly as printed in the evidence below, copied character for character. Identifiers are full UUIDs. Never abbreviate, shorten, or reformat an id. Never invent one.',
-    '- Cite an "experiment" by the id printed on its "Experiment <id>" line, a "proposal" by its "Proposal <id>" line, a "work_item" by its "Work item <id>" line, and a "decision" by its "Decision <id>" line.',
+    '- Cite an "experiment" by the id printed on its "Experiment <id>" line, a "proposal" by its "Proposal <id>" line, a "work_item" by its "Work item <id>" line, and a "decision" by its "Decision <id>" line, and a "finding" by its "Finding <id>" line.',
     '- A citation whose id is not present in the evidence below will be REJECTED and your conclusion will be reported to Paul as ungrounded. Copy ids precisely.',
     '- "evidence" is only for kind "evidence" or "inference"; an "unknown" conclusion may have an empty evidence array.',
     '- When citing a transcript, include the exact utteranceIds that support the point.',
@@ -520,6 +563,7 @@ export function buildUserPrompt(input: AskCgtPromptInput): string {
   // experiments (which are only background), because these records are what
   // the experiment currently knows.
   for (const section of [
+    renderReviewedFindings(input),
     renderWorkMeasures(input),
     renderWorkItems(input),
     renderWorkCorrections(input),

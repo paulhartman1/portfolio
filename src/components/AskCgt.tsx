@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { AskCgtConclusionReview } from './AskCgtConclusionReview'
 
 type Conclusion = {
   statement: string
@@ -196,6 +197,18 @@ export function AskCgt({
                             No evidence cited — this conclusion is not grounded in retrieved evidence.
                           </p>
                         )
+                      )}
+
+                      {/* Review actions exist only in experiment scope: a
+                          finding must belong to an experiment. */}
+                      {experimentId && (
+                        <AskCgtConclusionReview
+                          conclusion={conclusion}
+                          projectId={projectId}
+                          experimentId={experimentId}
+                          model={result.usage.model}
+                          provider={result.usage.provider}
+                        />
                       )}
                     </div>
                   )

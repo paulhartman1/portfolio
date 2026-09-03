@@ -120,6 +120,33 @@ export type AskCgtWorkItem = WorkItem & {
   contradictingEvidenceCount: number
 }
 
+/**
+ * A human-reviewed experiment finding.
+ *
+ * This is a reviewed consulting judgment, NOT source evidence. It carries both
+ * the model's original proposal and the wording Paul accepted, so a later
+ * reader can see whether the interpretation was edited — and can still reach
+ * the primary evidence underneath through its citations.
+ */
+export type AskCgtReviewedFinding = {
+  id: string
+  experimentId: string
+  experimentCode: string | null
+  statement: string
+  interpretation: string | null
+  proposedStatement: string | null
+  epistemicType: string | null
+  reviewStatus: string
+  wasEdited: boolean
+  reviewerName: string | null
+  reviewedAt: string | null
+  model: string | null
+  provider: string | null
+  proposedConfidence: number | null
+  /** Canonical typed citations, preserved from acceptance. */
+  citations: Array<{ type: string; id: string; utteranceIds: string[] | null }>
+}
+
 /** A durable decision, with the code of the decision it replaced (if any). */
 export type AskCgtDecision = Decision & {
   decidedByName: string | null
@@ -187,6 +214,8 @@ export type AskCgtContext = {
   decisions: AskCgtDecision[]
   /** Human corrections and disputes, most recent first. */
   workCorrections: AskCgtWorkCorrection[]
+  /** Paul-reviewed findings for this project, most recent first. */
+  reviewedFindings: AskCgtReviewedFinding[]
   /**
    * Derived measures and EXP-003 criteria for the ACTIVE experiment's
    * inventory, or null when there is no active experiment. Computed from the
@@ -208,6 +237,7 @@ export type AskCgtAllowedIds = {
   proposals: Set<string>
   workItems: Set<string>
   decisions: Set<string>
+  findings: Set<string>
 }
 
 export type RetrieveResult = {
@@ -467,6 +497,109 @@ async function retrieveWorkArtifacts(
       itemLinks.map((l) => l.subject_work_item_id).filter((id): id is string => Boolean(id))
     ),
   }
+}
+
+/**
+ * Retrieves human-reviewed findings for a project, with their citations.
+ *
+ * Only `origin = 'askcgt'` findings are returned: a manually written finding
+ * has no model proposal to compare against and is not part of the AskCGT
+ * review loop. Scoped by project_id in the query.
+ *
+ * Non-fatal on failure — AskCGT must still answer, and the prompt states that
+ * no reviewed findings exist rather than implying none were ever made.
+ */
+async function retrieveReviewedFindings(
+  supabase: Supabase,
+  projectId: string,
+  experimentCodeById: Map<string, string>,
+  profileNameById: Map<string, string>
+): Promise<AskCgtReviewedFinding[]> {
+  const { data, error } = await supabase
+    .from('experiment_findings')
+    .select(
+      'id, experiment_id, statement, interpretation, proposed_statement, epistemic_type, review_status, reviewed_by, reviewed_at, model, provider, proposed_confidence'
+    )
+    .eq('project_id', projectId)
+    .eq('origin', 'askcgt')
+    .order('reviewed_at', { ascending: false })
+  if (error || !data) return []
+
+  type Row = {
+    id: string
+    experiment_id: string
+    statement: string
+    interpretation: string | null
+    proposed_statement: string | null
+    epistemic_type: string | null
+    review_status: string
+    reviewed_by: string | null
+    reviewed_at: string | null
+    model: string | null
+    provider: string | null
+    proposed_confidence: number | null
+  }
+  const rows = data as Row[]
+  if (rows.length === 0) return []
+
+  const { data: linkData } = await supabase
+    .from('evidence_links')
+    .select(
+      'subject_finding_id, source_kind, source_transcript_id, source_utterance_ids, source_observation_id, source_marker_id, source_candidate_id, source_experiment_id, source_proposal_id, source_work_item_id, source_decision_id, source_label'
+    )
+    .in(
+      'subject_finding_id',
+      rows.map((row) => row.id)
+    )
+
+  type LinkRow = Record<string, unknown> & { subject_finding_id: string; source_kind: string }
+  const citationsByFinding = new Map<string, AskCgtReviewedFinding['citations']>()
+  for (const link of (linkData || []) as LinkRow[]) {
+    // Map the stored typed reference back to the canonical citation shape so
+    // the underlying evidence stays reachable.
+    const mapping: Array<[string, string]> = [
+      ['source_transcript_id', 'transcript'],
+      ['source_observation_id', 'observation'],
+      ['source_marker_id', 'marker'],
+      ['source_candidate_id', 'candidate'],
+      ['source_experiment_id', 'experiment'],
+      ['source_proposal_id', 'proposal'],
+      ['source_work_item_id', 'work_item'],
+      ['source_decision_id', 'decision'],
+    ]
+    for (const [column, type] of mapping) {
+      const id = link[column]
+      if (typeof id !== 'string' || !id) continue
+      const list = citationsByFinding.get(link.subject_finding_id) ?? []
+      list.push({
+        type,
+        id,
+        utteranceIds: Array.isArray(link.source_utterance_ids)
+          ? (link.source_utterance_ids as string[])
+          : null,
+      })
+      citationsByFinding.set(link.subject_finding_id, list)
+      break
+    }
+  }
+
+  return rows.map((row) => ({
+    id: row.id,
+    experimentId: row.experiment_id,
+    experimentCode: experimentCodeById.get(row.experiment_id) ?? null,
+    statement: row.statement,
+    interpretation: row.interpretation,
+    proposedStatement: row.proposed_statement,
+    epistemicType: row.epistemic_type,
+    reviewStatus: row.review_status,
+    wasEdited: row.review_status === 'accepted_edited',
+    reviewerName: row.reviewed_by ? profileNameById.get(row.reviewed_by) ?? null : null,
+    reviewedAt: row.reviewed_at,
+    model: row.model,
+    provider: row.provider,
+    proposedConfidence: row.proposed_confidence,
+    citations: citationsByFinding.get(row.id) ?? [],
+  }))
 }
 
 export type RetrieveOptions = {
@@ -743,6 +876,16 @@ export async function retrieveProjectEvidence(
   const personNameById = new Map(people.map((person) => [person.id, person.displayName]))
   const work = await retrieveWorkArtifacts(supabase, projectId, personNameById)
 
+  // Reviewed findings. The reviewer is a profile (an authenticated admin), not
+  // a `persons` row, so their name is resolved separately.
+  const experimentCodeById = new Map(allExperiments.map((e) => [e.id, e.code]))
+  const profileNameById = new Map<string, string>()
+  const { data: reviewerProfiles } = await supabase.from('profiles').select('id, display_name, email')
+  for (const profile of (reviewerProfiles || []) as Array<{ id: string; display_name: string | null; email: string | null }>) {
+    profileNameById.set(profile.id, profile.display_name || profile.email || profile.id)
+  }
+  const reviewedFindings = await retrieveReviewedFindings(supabase, projectId, experimentCodeById, profileNameById)
+
   // Measures are computed for the ACTIVE experiment's inventory only. A
   // project-wide number would misreport EXP-003's thresholds, which are about
   // one experiment's inventory.
@@ -778,6 +921,7 @@ export async function retrieveProjectEvidence(
     workItems: work.workItems,
     decisions: work.decisions,
     workCorrections: work.corrections,
+    reviewedFindings,
     workMeasures,
     workCriteria,
   }
@@ -794,6 +938,7 @@ export async function retrieveProjectEvidence(
     proposals: new Set(activeExperimentProposals.map((p) => p.id)),
     workItems: new Set(work.workItems.map((item) => item.id)),
     decisions: new Set(work.decisions.map((decision) => decision.id)),
+    findings: new Set(reviewedFindings.map((finding) => finding.id)),
   }
 
   const evidenceItemsRetrieved =
@@ -806,6 +951,7 @@ export async function retrieveProjectEvidence(
     work.workItems.length +
     work.decisions.length +
     work.corrections.length +
+    reviewedFindings.length +
     contextTranscripts.reduce((sum, t) => sum + t.utterances.length, 0)
 
   return { context, allowed, evidenceItemsRetrieved }

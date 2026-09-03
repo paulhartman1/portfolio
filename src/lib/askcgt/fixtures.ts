@@ -41,6 +41,8 @@ export const IDS = {
   workItem3: 'dddddddd-dddd-4ddd-8ddd-ddddddddddd3',
   decision1: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1',
   decision2: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2',
+  finding1: 'f1111111-1111-4111-8111-111111111111',
+  finding2: 'f1111111-1111-4111-8111-111111111112',
 } as const
 
 /**
@@ -478,6 +480,7 @@ export function baseContext(): AskCgtContext {
     workItems: [],
     decisions: [],
     workCorrections: [],
+    reviewedFindings: [],
     workMeasures: null,
     workCriteria: [],
   }

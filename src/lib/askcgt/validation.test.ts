@@ -24,6 +24,7 @@ const allowed: AskCgtAllowedIds = {
   proposals: new Set([IDS.proposal005]),
   workItems: new Set([IDS.workItem1]),
   decisions: new Set([IDS.decision1]),
+  findings: new Set([IDS.finding1]),
 }
 
 type RawEvidence = { type: string; id: string; utteranceIds?: string[] }

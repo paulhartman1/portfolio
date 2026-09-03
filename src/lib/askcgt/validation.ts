@@ -72,7 +72,8 @@ function validateEvidenceRef(raw: unknown, allowed: AskCgtAllowedIds): { type: E
     : type === 'experiment' ? allowed.experiments
     : type === 'proposal' ? allowed.proposals
     : type === 'work_item' ? allowed.workItems
-    : allowed.decisions
+    : type === 'decision' ? allowed.decisions
+    : allowed.findings
   if (!set.has(id)) return null
   return { type, id }
 }

@@ -115,13 +115,54 @@ export interface ExperimentLink {
   created_at: string
 }
 
+/**
+ * How a finding came to exist.
+ *
+ * 'manual' — a person wrote it directly in the findings editor.
+ * 'askcgt' — an AskCGT conclusion a human reviewed and deliberately accepted.
+ *   Acceptance makes it a reviewed FINDING linked to evidence; it does not
+ *   make it evidence.
+ */
+export const FINDING_ORIGINS = ['manual', 'askcgt'] as const
+export type FindingOrigin = (typeof FINDING_ORIGINS)[number]
+
+/**
+ * Committed review states. Uncommitted model output is never written to this
+ * table, so there is no 'proposed' row state — a conclusion under review is
+ * ephemeral until Paul accepts it.
+ */
+export const FINDING_REVIEW_STATUSES = ['accepted', 'accepted_edited'] as const
+export type FindingReviewStatus = (typeof FINDING_REVIEW_STATUSES)[number]
+
+/** The epistemic class the model assigned to the original conclusion. */
+export const FINDING_EPISTEMIC_TYPES = ['evidence', 'inference', 'unknown'] as const
+export type FindingEpistemicType = (typeof FINDING_EPISTEMIC_TYPES)[number]
+
 export interface ExperimentFinding {
   id: string
+  project_id: string
   experiment_id: string
+  /** The wording that was actually accepted. */
   statement: string
   interpretation: string | null
   supports_hypothesis: SupportsHypothesis
   confidence: Confidence | null
+
+  origin: FindingOrigin
+  /** The model's original wording, never overwritten. Null for manual findings. */
+  proposed_statement: string | null
+  proposed_interpretation: string | null
+  /** The model's 0-1 confidence, kept numeric rather than coerced into the text enum. */
+  proposed_confidence: number | null
+  epistemic_type: FindingEpistemicType | null
+  review_status: FindingReviewStatus
+  reviewed_by: string | null
+  reviewed_at: string | null
+  model: string | null
+  provider: string | null
+  /** Findings are internal by default; sharing with the client is deliberate. */
+  client_visible: boolean
+
   created_by: string | null
   created_at: string
   updated_at: string
